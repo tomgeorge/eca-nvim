@@ -1,11 +1,20 @@
 local Utils = require("eca.utils")
 local Config = require("eca.config")
 
+---@param str string
+---@return string
+local function trim(str)
+  return str:match("^%s*(.-)%s*$")
+end
+
 ---@class eca.Sidebar
 ---@field public id integer The tab ID
 ---@field public winid integer The window ID
 ---@field public bufnr integer The buffer number
 ---@field private _initialized boolean Whether the sidebar has been initialized
+---@field private _current_response_buffer string Buffer for accumulating streaming response
+---@field private _is_streaming boolean Whether we're currently receiving a streaming response
+---@field private _last_assistant_line integer Line number of the last assistant message
 local M = {}
 M.__index = M
 
@@ -17,6 +26,9 @@ function M:new(id)
   instance.winid = -1
   instance.bufnr = -1
   instance._initialized = false
+  instance._current_response_buffer = ""
+  instance._is_streaming = false
+  instance._last_assistant_line = 0
   return instance
 end
 
@@ -225,7 +237,8 @@ function M:_set_welcome_content()
     "",
     "## 🚀 Getting Started",
     "",
-    "- **Chat**: Type your message below and press `Enter`",
+    "- **Chat**: Type your message below and press `Ctrl+S` to send",
+    "- **Multiline**: Use `Enter` for new lines, `Ctrl+S` to send",
     "- **Context**: Use `@` to mention files or directories",
     "- **Commands**: Use `:EcaAddFile` to add file context",
     "- **Selection**: Use `:EcaAddSelection` to add code selection",
@@ -237,6 +250,11 @@ function M:_set_welcome_content()
     "Help me optimize this code",
     "What does this error mean?",
     "```",
+    "",
+    "## ⌨️ Shortcuts",
+    "",
+    "- **`Ctrl+S`**: Send message",
+    "- **`Enter`**: New line in message",
     "",
     "---",
     "",
@@ -276,27 +294,61 @@ function M:_setup_autocmds()
     end,
   })
   
-  -- Handle Enter key for sending messages
-  vim.keymap.set("i", "<CR>", function()
+  -- Handle Ctrl+S for sending messages
+  vim.keymap.set("i", "<C-s>", function()
     self:_handle_input()
-  end, { buffer = self.bufnr, noremap = true })
+  end, { buffer = self.bufnr, noremap = true, desc = "Send message to ECA" })
   
-  vim.keymap.set("n", "<CR>", function()
+  vim.keymap.set("n", "<C-s>", function()
     self:_handle_input()
-  end, { buffer = self.bufnr, noremap = true })
+  end, { buffer = self.bufnr, noremap = true, desc = "Send message to ECA" })
 end
 
 function M:_handle_input()
   local cursor = vim.api.nvim_win_get_cursor(self.winid)
   local current_line = cursor[1]
-  local line_content = vim.api.nvim_buf_get_lines(self.bufnr, current_line - 1, current_line, false)[1]
   
-  -- Check if line starts with "> " (prompt)
-  if line_content and line_content:match("^> ") then
-    local message = line_content:sub(3):trim()
-    if message and message ~= "" then
-      self:_send_message(message)
+  -- Find the last prompt line (starts with "> ")
+  local lines = vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false)
+  local prompt_start = nil
+  
+  -- Look for the last "> " line
+  for i = #lines, 1, -1 do
+    if lines[i]:match("^> ") then
+      prompt_start = i
+      break
     end
+  end
+  
+  if not prompt_start then
+    Utils.warn("No prompt found")
+    return
+  end
+  
+  -- Collect all lines from the prompt to the current position
+  local message_lines = {}
+  local first_line = lines[prompt_start]:sub(3) -- Remove "> " prefix
+  if first_line and trim(first_line) ~= "" then
+    table.insert(message_lines, trim(first_line))
+  end
+  
+  -- Add subsequent lines until we reach the current cursor or find another prompt
+  for i = prompt_start + 1, current_line do
+    local line = lines[i]
+    if line and not line:match("^> ") then -- Don't include other prompts
+      table.insert(message_lines, line)
+    else
+      break
+    end
+  end
+  
+  -- Join all lines and trim
+  local message = trim(table.concat(message_lines, "\n"))
+  
+  if message and message ~= "" then
+    self:_send_message(message)
+  else
+    Utils.warn("Empty message")
   end
 end
 
@@ -307,12 +359,160 @@ function M:_send_message(message)
   -- Add user message to chat
   self:_add_message("user", message)
   
-  -- TODO: Send message to ECA server and handle response
-  -- For now, just add a placeholder response
-  vim.defer_fn(function()
-    self:_add_message("assistant", "This is a placeholder response. ECA server communication is not yet implemented.")
+  -- Send message to ECA server
+  local eca = require("eca")
+  if eca.server and eca.server:is_running() then
+    eca.server:send_chat_message(message, {}, function(err, result)
+      if err then
+        Utils.error("Failed to send message to ECA server: " .. tostring(err))
+        self:_add_message("assistant", "❌ **Error**: Failed to send message to ECA server")
+        self:_add_input_line()
+      end
+      -- Response will come through server notification handler
+    end)
+  else
+    self:_add_message("assistant", "❌ **Error**: ECA server is not running. Please check server status.")
     self:_add_input_line()
-  end, 100)
+  end
+end
+
+---@param params table Server content notification
+function M:_handle_server_content(params)
+  if not params or not params.content then return end
+  
+  local content = params.content
+  
+  if content.type == "text" then
+    -- Handle streaming text content
+    self:_handle_streaming_text(content.text)
+  elseif content.type == "progress" then
+    if content.state == "running" then
+      self:_add_message("assistant", "⏳ " .. (content.text or "Processing..."))
+    elseif content.state == "finished" then
+      -- Finalize any streaming response and prepare for next input
+      self:_finalize_streaming_response()
+      self:_add_input_line()
+    end
+  elseif content.type == "usage" then
+    -- Finalize streaming before adding usage info
+    self:_finalize_streaming_response()
+    local usage_text = string.format("💰 **Usage**: Tokens: %d input, %d output", 
+      content.messageInputTokens or 0, 
+      content.messageOutputTokens or 0)
+    if content.messageCost then
+      usage_text = usage_text .. " | Cost: " .. content.messageCost
+    end
+    self:_add_message("assistant", usage_text)
+  elseif content.type == "toolCallPrepare" then
+    self:_finalize_streaming_response()
+    local tool_text = string.format("🔧 **Tool Call**: %s\n```json\n%s\n```", 
+      content.name, content.argumentsText)
+    self:_add_message("assistant", tool_text)
+  elseif content.type == "toolCalled" then
+    self:_finalize_streaming_response()
+    local tool_text = string.format("✅ **Tool Result**: %s", content.name)
+    if content.outputs and #content.outputs > 0 then
+      for _, output in ipairs(content.outputs) do
+        if output.type == "text" then
+          tool_text = tool_text .. "\n" .. output.content
+        end
+      end
+    end
+    self:_add_message("assistant", tool_text)
+  end
+end
+
+---@param text string
+function M:_handle_streaming_text(text)
+  if not self._is_streaming then
+    -- Start new streaming response
+    self._is_streaming = true
+    self._current_response_buffer = ""
+    self:_start_assistant_message()
+  end
+  
+  -- Accumulate text
+  self._current_response_buffer = self._current_response_buffer .. text
+  
+  -- Update the current assistant message with accumulated text
+  self:_update_current_assistant_message(self._current_response_buffer)
+end
+
+function M:_start_assistant_message()
+  local lines = vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false)
+  
+  -- Remove the last input line if it exists
+  if #lines > 0 and lines[#lines]:match("^> ") then
+    table.remove(lines)
+  end
+  
+  -- Add separator if not the first message
+  if #lines > 0 and lines[#lines] ~= "" then
+    table.insert(lines, "")
+    table.insert(lines, "---")
+    table.insert(lines, "")
+  end
+  
+  -- Add assistant header
+  table.insert(lines, "## 🤖 ECA")
+  table.insert(lines, "")
+  
+  -- Add empty content line (will be updated with streaming text)
+  table.insert(lines, "")
+  
+  -- Store the line number where the content will be updated
+  self._last_assistant_line = #lines
+  
+  -- Update buffer
+  vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
+end
+
+---@param text string
+function M:_update_current_assistant_message(text)
+  if not self._is_streaming or self._last_assistant_line == 0 then
+    return
+  end
+  
+  local lines = vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false)
+  
+  -- Split the accumulated text into lines
+  local content_lines = Utils.split_lines(text)
+  
+  -- Replace the content starting from the assistant content line
+  local new_lines = {}
+  
+  -- Keep lines before the assistant content
+  for i = 1, self._last_assistant_line - 1 do
+    table.insert(new_lines, lines[i] or "")
+  end
+  
+  -- Add the updated content
+  for _, line in ipairs(content_lines) do
+    table.insert(new_lines, line)
+  end
+  
+  -- Update buffer
+  vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, new_lines)
+  
+  -- Scroll to bottom
+  local line_count = #new_lines
+  vim.api.nvim_win_set_cursor(self.winid, { line_count, 0 })
+  
+  -- Refresh markview rendering
+  self:_refresh_markview()
+end
+
+function M:_finalize_streaming_response()
+  if self._is_streaming then
+    self._is_streaming = false
+    self._current_response_buffer = ""
+    self._last_assistant_line = 0
+    
+    -- Add an empty line after the response
+    local lines = vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false)
+    table.insert(lines, "")
+    vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
+  end
 end
 
 ---@param role "user" | "assistant"
@@ -423,8 +623,10 @@ function M:_add_input_line()
 end
 
 -- Helper function to trim strings
-function string:trim()
-  return self:match("^%s*(.-)%s*$")
+---@param str string
+---@return string
+local function trim(str)
+  return str:match("^%s*(.-)%s*$")
 end
 
 return M

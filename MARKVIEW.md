@@ -1,10 +1,10 @@
-# Integração com Markview.nvim
+# Markview.nvim Integration
 
-O plugin ECA para Neovim inclui integração nativa com o [markview.nvim](https://github.com/OXY2DEV/markview.nvim) para renderização bonita de markdown no chat.
+The ECA plugin for Neovim includes native integration with [markview.nvim](https://github.com/OXY2DEV/markview.nvim) for beautiful markdown rendering in chat.
 
-## Instalação do Markview
+## Markview Installation
 
-### Com lazy.nvim
+### With lazy.nvim
 
 ```lua
 {
@@ -16,14 +16,14 @@ O plugin ECA para Neovim inclui integração nativa com o [markview.nvim](https:
   },
   opts = {
     preview = {
-      filetypes = { "markdown", "Eca" }, -- Inclui "Eca" para o chat
+      filetypes = { "markdown", "Eca" }, -- Includes "Eca" for chat
       ignore_buftypes = {},
     }
   }
 }
 ```
 
-### Com packer.nvim
+### With packer.nvim
 
 ```lua
 use {
@@ -42,41 +42,41 @@ use {
 }
 ```
 
-## Configuração do ECA com Markview
+## ECA Configuration with Markview
 
 ```lua
 require("eca").setup({
   markview = {
-    enable = true, -- Habilita integração com markview
-    filetypes = { "markdown", "Eca" }, -- Tipos de arquivo para habilitar
+    enable = true, -- Enables markview integration
+    filetypes = { "markdown", "Eca" }, -- File types to enable
   },
-  -- ... outras configurações
+  -- ... other configurations
 })
 ```
 
-## Funcionalidades Suportadas
+## Supported Features
 
-O ECA com markview.nvim oferece:
+ECA with markview.nvim offers:
 
-- ✅ **Cabeçalhos**: `#`, `##`, `###` renderizados com destaque
-- ✅ **Texto em negrito**: `**texto**` e `__texto__`
-- ✅ **Texto em itálico**: `*texto*` e `_texto_`
-- ✅ **Código inline**: `` `código` ``
-- ✅ **Blocos de código**: ````código```` com destaque de sintaxe
-- ✅ **Listas**: `- item`, `* item`, `1. item`
-- ✅ **Citações**: `> citação`
-- ✅ **Links**: `[texto](url)`
-- ✅ **Separadores**: `---`
-- ✅ **Tabelas**: Markdown tables
+- ✅ **Headers**: `#`, `##`, `###` rendered with highlighting
+- ✅ **Bold text**: `**text**` and `__text__`
+- ✅ **Italic text**: `*text*` and `_text_`
+- ✅ **Inline code**: `` `code` ``
+- ✅ **Code blocks**: ````code```` with syntax highlighting
+- ✅ **Lists**: `- item`, `* item`, `1. item`
+- ✅ **Quotes**: `> quote`
+- ✅ **Links**: `[text](url)`
+- ✅ **Separators**: `---`
+- ✅ **Tables**: Markdown tables
 - ✅ **Emojis**: 🤖, 👤, 💡, etc.
 
-## Exemplos de Renderização
+## Rendering Examples
 
-### Entrada do usuário:
+### User input:
 ```markdown
 ## 👤 You
 
-Como posso melhorar este código?
+How can I improve this code?
 
 ```python
 def fibonacci(n):
@@ -86,13 +86,13 @@ def fibonacci(n):
 ```
 ```
 
-### Resposta do ECA:
+### ECA response:
 ```markdown
 ## 🤖 ECA
 
-Aqui estão algumas **melhorias** para o código:
+Here are some **improvements** for the code:
 
-### 1. 🚀 Memorização (Memoization)
+### 1. 🚀 Memoization
 
 ```python
 from functools import lru_cache
@@ -104,7 +104,7 @@ def fibonacci(n):
     return fibonacci(n-1) + fibonacci(n-2)
 ```
 
-### 2. 💡 Implementação Iterativa
+### 2. 💡 Iterative Implementation
 
 ```python
 def fibonacci(n):
@@ -117,45 +117,45 @@ def fibonacci(n):
     return b
 ```
 
-> **Dica**: A versão iterativa é mais eficiente para números grandes!
+> **Tip**: The iterative version is more efficient for large numbers!
 ```
 
-## Desabilitando o Markview
+## Disabling Markview
 
-Se preferir usar markdown simples, desabilite o markview:
+If you prefer to use plain markdown, disable markview:
 
 ```lua
 require("eca").setup({
   markview = {
-    enable = false, -- Desabilita markview
+    enable = false, -- Disables markview
   },
 })
 ```
 
-## Solução de Problemas
+## Troubleshooting
 
-### Markview não funciona
-1. Verifique se o plugin está instalado: `:Lazy check markview.nvim`
-2. Verifique se treesitter está configurado: `:TSInstall markdown`
-3. Reinicie o Neovim após instalar
+### Markview not working
+1. Check if plugin is installed: `:Lazy check markview.nvim`
+2. Check if treesitter is configured: `:TSInstall markdown`
+3. Restart Neovim after installing
 
-### Performance lenta
-Se o markview estiver lento com chats longos:
+### Slow performance
+If markview is slow with long chats:
 
 ```lua
 require("eca").setup({
   markview = {
     enable = true,
-    filetypes = { "markdown" }, -- Remove "Eca" se necessário
+    filetypes = { "markdown" }, -- Remove "Eca" if necessary
   },
 })
 ```
 
-### Conflitos de highlight
-Se houver conflitos visuais:
+### Highlight conflicts
+If there are visual conflicts:
 
 ```lua
--- No seu init.lua, após configurar o markview
+-- In your init.lua, after configuring markview
 vim.api.nvim_set_hl(0, "MarkviewHeading1", { fg = "#7aa2f7", bold = true })
 vim.api.nvim_set_hl(0, "MarkviewCode", { bg = "#1a1b26", fg = "#bb9af7" })
 ```

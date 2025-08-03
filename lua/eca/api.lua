@@ -49,15 +49,51 @@ end
 ---@param file_path string
 function M.add_file_context(file_path)
   Utils.info("Adding file context: " .. file_path)
-  -- TODO: Implement file context addition
-  -- This would send the file content to the ECA server as context
+  local eca = require("eca")
+  
+  if not eca.server or not eca.server:is_running() then
+    Utils.error("ECA server is not running")
+    return
+  end
+  
+  -- Read file content
+  local content = Utils.read_file(file_path)
+  if not content then
+    Utils.error("Could not read file: " .. file_path)
+    return
+  end
+  
+  -- Create context object
+  local context = {
+    type = "file",
+    path = file_path,
+    content = content
+  }
+  
+  -- For now, store it for next message
+  -- TODO: Implement context management
+  Utils.debug("File context added: " .. file_path)
 end
 
 ---@param directory_path string
 function M.add_directory_context(directory_path)
   Utils.info("Adding directory context: " .. directory_path)
-  -- TODO: Implement directory context addition
-  -- This would send the directory structure to the ECA server as context
+  local eca = require("eca")
+  
+  if not eca.server or not eca.server:is_running() then
+    Utils.error("ECA server is not running")
+    return
+  end
+  
+  -- Create context object for directory
+  local context = {
+    type = "directory",
+    path = directory_path
+  }
+  
+  -- For now, store it for next message
+  -- TODO: Implement context management
+  Utils.debug("Directory context added: " .. directory_path)
 end
 
 function M.add_current_file_context()

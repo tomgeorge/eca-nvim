@@ -1,21 +1,21 @@
--- Teste para verificar se o markview.nvim está funcionando
--- Execute este arquivo com :luafile test-markview.lua
+-- Test to verify if markview.nvim is working
+-- Run this file with :luafile test-markview.lua
 
 local function test_markview()
-  print("🔍 Testando integração com markview.nvim...")
+  print("🔍 Testing markview.nvim integration...")
   
-  -- Verificar se markview está disponível
+  -- Check if markview is available
   local markview_ok, markview = pcall(require, "markview")
   
   if not markview_ok then
-    print("❌ markview.nvim não encontrado")
-    print("💡 Instale com: { 'OXY2DEV/markview.nvim', lazy = false }")
+    print("❌ markview.nvim not found")
+    print("💡 Install with: { 'OXY2DEV/markview.nvim', lazy = false }")
     return false
   end
   
-  print("✅ markview.nvim encontrado")
+  print("✅ markview.nvim found")
   
-  -- Verificar métodos disponíveis
+  -- Check available methods
   local methods = {}
   if markview.enable then table.insert(methods, "enable") end
   if markview.disable then table.insert(methods, "disable") end
@@ -23,30 +23,30 @@ local function test_markview()
   if markview.detach then table.insert(methods, "detach") end
   if markview.setup then table.insert(methods, "setup") end
   
-  print("📋 Métodos disponíveis: " .. table.concat(methods, ", "))
+  print("📋 Available methods: " .. table.concat(methods, ", "))
   
-  -- Verificar se treesitter está configurado para markdown
+  -- Check if treesitter is configured for markdown
   local ts_ok, ts = pcall(require, "nvim-treesitter")
   if ts_ok then
-    print("✅ nvim-treesitter disponível")
+    print("✅ nvim-treesitter available")
   else
-    print("⚠️  nvim-treesitter não encontrado (necessário para markview)")
+    print("⚠️  nvim-treesitter not found (required for markview)")
   end
   
-  -- Verificar parser markdown
+  -- Check markdown parser
   local has_markdown = vim.fn.executable("markdown") == 1 or 
                       pcall(vim.treesitter.get_parser, 0, "markdown")
   
   if has_markdown then
-    print("✅ Parser markdown disponível")
+    print("✅ Markdown parser available")
   else
-    print("⚠️  Parser markdown não encontrado")
-    print("💡 Execute: :TSInstall markdown")
+    print("⚠️  Markdown parser not found")
+    print("💡 Run: :TSInstall markdown")
   end
   
-  print("\n🎉 Teste concluído! Agora teste o ECA com :EcaChat")
+  print("\n🎉 Test completed! Now test ECA with :EcaChat")
   return true
 end
 
--- Executar teste
+-- Run test
 test_markview()

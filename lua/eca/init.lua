@@ -5,6 +5,7 @@ local Utils = require("eca.utils")
 local Sidebar = require("eca.sidebar")
 local Config = require("eca.config")
 local Server = require("eca.server")
+local StatusBar = require("eca.status_bar")
 
 ---@class Eca
 local M = {
@@ -14,6 +15,8 @@ local M = {
   current = { sidebar = nil },
   ---@type eca.Server
   server = nil,
+  ---@type eca.StatusBar
+  status_bar = nil,
 }
 
 M.did_setup = false
@@ -201,7 +204,7 @@ setmetatable(M.toggle, {
 
 ---@param opts? eca.Config
 function M.setup(opts)
-  Config.setup(opts)
+  Config.setup(opts or {})
 
   if M.did_setup then return end
 
@@ -213,9 +216,29 @@ function M.setup(opts)
   H.keymaps()
   H.signs()
 
-  -- Initialize the ECA server
-  M.server = Server:new()
-  M.server:start()
+  -- Initialize status bar
+  M.status_bar = StatusBar:new()
+
+  -- Initialize the ECA server with callbacks
+  M.server = Server:new({
+    on_started = function(connection)
+      M.status_bar:update("Running")
+      Utils.info("ECA server started and ready!")
+    end,
+    on_status_changed = function(status)
+      M.status_bar:update(status)
+      if status == "Failed" then
+        Utils.error("ECA server failed to start. Check :messages for details.")
+      elseif status == "Starting" then
+        Utils.info("Starting ECA server...")
+      end
+    end
+  })
+
+  -- Start server automatically in background
+  vim.defer_fn(function()
+    M.server:start()
+  end, 100) -- Small delay to ensure everything is loaded
 
   M.did_setup = true
 end

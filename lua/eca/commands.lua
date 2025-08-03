@@ -66,10 +66,31 @@ function M.setup()
   })
 
   vim.api.nvim_create_user_command("EcaServerStatus", function()
-    local status = require("eca.api").server_status()
-    Utils.info("ECA Server Status: " .. status)
+    local eca = require("eca")
+    local status = eca.server and eca.server:status() or "Not initialized"
+    local status_icon = "○"
+    
+    if status == "Running" then
+      status_icon = "✓"
+    elseif status == "Starting" then
+      status_icon = "⋯"
+    elseif status == "Failed" then
+      status_icon = "✗"
+    end
+    
+    Utils.info("ECA Server Status: " .. status .. " " .. status_icon)
+    
+    -- Also show path info if available
+    if eca.server and eca.server._path_finder then
+      local config = require("eca.config")
+      if config.server_path and config.server_path ~= "" then
+        Utils.info("Server path: " .. config.server_path .. " (custom)")
+      else
+        Utils.info("Server path: auto-detected/downloaded")
+      end
+    end
   end, {
-    desc = "Show ECA server status",
+    desc = "Show ECA server status with details",
   })
 
   vim.api.nvim_create_user_command("EcaSend", function(opts)
@@ -91,6 +112,36 @@ function M.setup()
     Utils.info(string.format("Width: %d columns (%.1f%% of %d total columns)", width, percentage, columns))
   end, {
     desc = "Debug window width calculation",
+  })
+
+  vim.api.nvim_create_user_command("EcaRedownload", function()
+    local eca = require("eca")
+    local Utils = require("eca.utils")
+    
+    if eca.server and eca.server:is_running() then
+      Utils.info("Stopping server before re-download...")
+      eca.server:stop()
+    end
+    
+    -- Remove existing version file to force re-download
+    local cache_dir = Utils.get_cache_dir()
+    local version_file = cache_dir .. "/eca-version"
+    os.remove(version_file)
+    
+    -- Remove existing binary
+    local server_binary = cache_dir .. "/eca"
+    os.remove(server_binary)
+    
+    Utils.info("Removed cached ECA server. Will re-download on next start.")
+    
+    -- Restart server
+    vim.defer_fn(function()
+      if eca.server then
+        eca.server:start()
+      end
+    end, 1000)
+  end, {
+    desc = "Force re-download of ECA server",
   })
 
   Utils.debug("ECA commands registered")
