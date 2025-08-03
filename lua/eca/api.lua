@@ -27,7 +27,12 @@ end
 
 function M.close()
   local eca = require("eca")
-  eca.close_sidebar()
+  local sidebar = eca.get()
+  if sidebar then
+    sidebar:new_chat() -- This will reset and force welcome content on next open
+  else
+    eca.close_sidebar()
+  end
 end
 
 ---@param message string
