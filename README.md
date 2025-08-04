@@ -22,7 +22,7 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 
 ```lua
 {
-  "W3ND31/eca-neovim",
+  "editor-code-assistant/eca-nvim",
   config = function()
     require("eca").setup()
   end
@@ -33,7 +33,7 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 
 ```lua
 use {
-  "W3ND31/eca-neovim",
+  "editor-code-assistant/eca-nvim",
   requires = {
     -- Required for enhanced UI components
     "MunifTanjim/nui.nvim",
@@ -50,7 +50,7 @@ use {
 
 ```vim
 " In your init.vim or init.lua
-Plug 'W3ND31/eca-neovim'
+Plug 'editor-code-assistant/eca-nvim'
 
 " Required dependencies
 Plug 'MunifTanjim/nui.nvim'
@@ -66,7 +66,7 @@ EOF
 ### 📋 [dein.vim](https://github.com/Shougo/dein.vim)
 
 ```vim
-call dein#add('W3ND31/eca-neovim')
+call dein#add('editor-code-assistant/eca-nvim')
 
 " Required dependencies
 call dein#add('MunifTanjim/nui.nvim')
@@ -82,7 +82,7 @@ EOF
 ```toml
 # rocks.toml
 [plugins]
-"eca-neovim" = { git = "W3ND31/eca-neovim" }
+"eca-neovim" = { git = "editor-code-assistant/eca-nvim" }
 
 # Required dependencies
 "nui.nvim" = { git = "MunifTanjim/nui.nvim" }
@@ -94,7 +94,7 @@ EOF
 local add = MiniDeps.add
 
 add({
-  source = "W3ND31/eca-neovim",
+  source = "editor-code-assistant/eca-nvim",
   depends = {
     -- Required dependencies
     "MunifTanjim/nui.nvim",
@@ -591,15 +591,15 @@ end)
 
 ### 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/W3ND31/eca-neovim/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/W3ND31/eca-neovim/discussions)
-- **Wiki**: [GitHub Wiki](https://github.com/W3ND31/eca-neovim/wiki)
+- **Issues**: [GitHub Issues](https://github.com/editor-code-assistant/eca-nvim/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/editor-code-assistant/eca-nvim/discussions)
+- **Wiki**: [GitHub Wiki](https://github.com/editor-code-assistant/eca-nvim/wiki)
 
 ### 🔧 Local Development
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/W3ND31/eca-neovim.git
+   git clone https://github.com/editor-code-assistant/eca-nvim.git
    ```
 
 2. **Configure local path**:
@@ -662,6 +662,6 @@ This plugin was inspired and based on the work of:
 
 **✨ Made with ❤️ for the Neovim community ✨**
 
-[⭐ Give a star if this plugin was useful!](https://github.com/W3ND31/eca-neovim)
+[⭐ Give a star if this plugin was useful!](https://github.com/editor-code-assistant/eca-nvim)
 
 </div>
