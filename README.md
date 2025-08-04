@@ -11,7 +11,6 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 - 🎨 **Modern Interface**: Integrated sidebar with markdown support
 - ⌨️ **Intuitive Commands**: Ctrl+S to send, Enter for new line
 - 🔧 **Highly Configurable**: Customizable shortcuts, appearance and behavior
-- ✨ **Beautiful Markdown**: Integration with [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
 - 📊 **Visual Feedback**: Status bar with server information
 - 🔄 **Real-time Streaming**: Responses appear as they are generated
 
@@ -30,62 +29,14 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 }
 ```
 
-#### Complete Configuration with Markview
-
-```lua
-{
-  "W3ND31/eca-neovim",
-  dependencies = {
-    -- Recommended for beautiful markdown rendering
-    {
-      "OXY2DEV/markview.nvim",
-      lazy = false,
-      dependencies = {
-        "nvim-treesitter/nvim-treesitter",
-        "nvim-tree/nvim-web-devicons"
-      }
-    }
-  },
-  config = function()
-    require("eca").setup({
-      debug = false,
-      behaviour = {
-        auto_set_keymaps = true,
-        auto_focus_sidebar = true,
-        auto_start_server = true,
-      },
-      markview = {
-        enable = true,
-        filetypes = { "markdown", "Eca" },
-      },
-      mappings = {
-        chat = "<leader>ec",
-        focus = "<leader>ef",
-        toggle = "<leader>et",
-      },
-      windows = {
-        width = 40,
-        wrap = true,
-      },
-    })
-  end
-}
-```
-
 ### 📦 [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
 use {
   "W3ND31/eca-neovim",
   requires = {
-    -- Optional: for beautiful markdown
-    {
-      "OXY2DEV/markview.nvim",
-      requires = {
-        "nvim-treesitter/nvim-treesitter",
-        "nvim-tree/nvim-web-devicons"
-      }
-    }
+    -- Required for enhanced UI components
+    "MunifTanjim/nui.nvim",
   },
   config = function()
     require("eca").setup({
@@ -101,10 +52,8 @@ use {
 " In your init.vim or init.lua
 Plug 'W3ND31/eca-neovim'
 
-" Optional: for beautiful markdown
-Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
-Plug 'nvim-tree/nvim-web-devicons'
-Plug 'OXY2DEV/markview.nvim'
+" Required dependencies
+Plug 'MunifTanjim/nui.nvim'
 
 " After the plugins, add:
 lua << EOF
@@ -119,10 +68,8 @@ EOF
 ```vim
 call dein#add('W3ND31/eca-neovim')
 
-" Optional: for beautiful markdown
-call dein#add('nvim-treesitter/nvim-treesitter')
-call dein#add('nvim-tree/nvim-web-devicons')
-call dein#add('OXY2DEV/markview.nvim')
+" Required dependencies
+call dein#add('MunifTanjim/nui.nvim')
 
 " Configuration
 lua << EOF
@@ -137,10 +84,8 @@ EOF
 [plugins]
 "eca-neovim" = { git = "W3ND31/eca-neovim" }
 
-# Optional: for beautiful markdown
-"markview.nvim" = { git = "OXY2DEV/markview.nvim" }
-"nvim-treesitter" = "scm"
-"nvim-web-devicons" = "scm"
+# Required dependencies
+"nui.nvim" = { git = "MunifTanjim/nui.nvim" }
 ```
 
 ### 🌱 [mini.deps](https://github.com/echasnovski/mini.nvim)
@@ -151,10 +96,8 @@ local add = MiniDeps.add
 add({
   source = "W3ND31/eca-neovim",
   depends = {
-    -- Optional: for beautiful markdown
-    "OXY2DEV/markview.nvim",
-    "nvim-treesitter/nvim-treesitter",
-    "nvim-tree/nvim-web-devicons"
+    -- Required dependencies
+    "MunifTanjim/nui.nvim",
   }
 })
 
@@ -241,15 +184,6 @@ require("eca").setup({
     show_status_updates = true,
   },
   
-  -- === MARKVIEW INTEGRATION ===
-  markview = {
-    -- Enable markview.nvim integration
-    enable = true,
-    
-    -- File types to enable markview
-    filetypes = { "markdown", "Eca" },
-  },
-  
   -- === KEY MAPPINGS ===
   mappings = {
     chat = "<leader>ec",      -- Open chat
@@ -309,7 +243,6 @@ require("eca").setup({
 
 ```lua
 require("eca").setup({
-  markview = { enable = false },
   behaviour = { show_status_updates = false },
   windows = { width = 30 },
 })
@@ -319,7 +252,6 @@ require("eca").setup({
 
 ```lua
 require("eca").setup({
-  markview = { enable = true },
   behaviour = { auto_focus_sidebar = true },
   windows = {
     width = 50,
@@ -352,7 +284,6 @@ require("eca").setup({
 
 ```lua
 require("eca").setup({
-  markview = { enable = false },
   behaviour = {
     auto_focus_sidebar = false,
     show_status_updates = false,
@@ -522,32 +453,7 @@ Consider readability and maintainability.
 
 ### ✨ Optional
 
-- **[markview.nvim](https://github.com/OXY2DEV/markview.nvim)** - For beautiful markdown rendering in chat
-- **[nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)** - Required for markview
-- **[nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons)** - Icons for markview
 - **[plenary.nvim](https://github.com/nvim-lua/plenary.nvim)** - Utility functions (some distributions)
-
-### 🎨 Installing Markview (Recommended)
-
-Markview.nvim makes the chat much more beautiful and readable:
-
-```lua
--- With lazy.nvim
-{
-  "OXY2DEV/markview.nvim",
-  lazy = false,
-  dependencies = {
-    "nvim-treesitter/nvim-treesitter",
-    "nvim-tree/nvim-web-devicons"
-  },
-  config = function()
-    require("markview").setup({
-      modes = { "n", "i", "no", "c" },
-      hybrid_modes = { "i" },
-    })
-  end
-}
-```
 
 ### 💻 Tested Systems
 
@@ -590,17 +496,6 @@ require("eca").setup({
 - Configure proxy if necessary
 - Download server manually and configure `server_path`
 
-### 🎨 Markview not working
-
-**Symptoms**: Markdown appears as plain text
-
-**Solutions**:
-
-- Install markview.nvim and dependencies
-- Check if `markview.enable = true` in configuration
-- Run `:TSUpdate markdown` to update parsers
-- Restart Neovim after installing markview
-
 ### ⌨️ Shortcuts not working
 
 **Symptoms**: `<leader>ec` doesn't open chat
@@ -633,7 +528,6 @@ vim.keymap.set("n", "<leader>et", ":EcaToggle<CR>", { desc = "ECA Toggle" })
 
 **Solutions**:
 
-- Disable markview: `markview.enable = false`
 - Reduce window width: `windows.width = 25`
 - Disable visual updates: `behaviour.show_status_updates = false`
 - Use minimalist configuration
@@ -753,7 +647,6 @@ This plugin was inspired and based on the work of:
 
 - **[avante.nvim](https://github.com/yetone/avante.nvim)** - Base structure and UI concepts
 - **[eca-vscode](https://github.com/editor-code-assistant/eca-vscode)** - ECA server integration
-- **[markview.nvim](https://github.com/OXY2DEV/markview.nvim)** - Beautiful markdown rendering
 - **Neovim Community** - For all the tools and inspiration
 
 ## 🔗 Useful Links

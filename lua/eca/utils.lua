@@ -12,7 +12,7 @@ function M.debug(msg, opts)
   local Config = require("eca.config")
   if Config.debug then
     vim.notify(msg, vim.log.levels.DEBUG, {
-      title = opts.title or "ECA Debug",
+      title = opts.title or "ECA - Debug",
       once = opts.once,
     })
   end

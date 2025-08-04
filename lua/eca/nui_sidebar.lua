@@ -1,16 +1,21 @@
 local Utils = require("eca.utils")
 local Config = require("eca.config")
 
--- Load nui.nvim components (required dependency)
-local Split = require("nui.split")
-local event = require("nui.utils.autocmd")
+-- Check if nui.nvim is available
+local nui_available, Split = pcall(require, "nui.split")
+local nui_event_available, event = pcall(require, "nui.utils.autocmd")
 
--- Helper function for trimming strings
-local function trim(str)
-  return str:match("^%s*(.-)%s*$")
+if not nui_available then
+  Utils.warn("nui.nvim not found. Install MunifTanjim/nui.nvim for enhanced UI experience.")
+  return nil
 end
 
----@class eca.Sidebar
+if not nui_event_available then
+  Utils.warn("nui.utils.autocmd not found. Some features may not work properly.")
+  event = nil
+end
+
+---@class eca.NuiSidebar
 ---@field public id integer The tab ID
 ---@field public containers table<string, NuiSplit> The nui containers
 ---@field private _initialized boolean Whether the sidebar has been initialized
@@ -26,13 +31,11 @@ end
 ---@field private _selected_code table Current selected code for display
 ---@field private _todos table List of active todos
 ---@field private _augroup integer Autocmd group ID
----@field private _response_start_time number Timestamp when streaming started
----@field private _max_response_length number Maximum allowed response length
 local M = {}
 M.__index = M
 
 ---@param id integer Tab ID
----@return eca.Sidebar
+---@return eca.NuiSidebar
 function M:new(id)
   local instance = setmetatable({}, M)
   instance.id = id
@@ -49,9 +52,7 @@ function M:new(id)
   instance._contexts = {}
   instance._selected_code = nil
   instance._todos = {}
-  instance._augroup = vim.api.nvim_create_augroup("eca_sidebar_" .. id, { clear = true })
-  instance._response_start_time = 0
-  instance._max_response_length = 50000 -- 50KB max response
+  instance._augroup = vim.api.nvim_create_augroup("eca_nui_sidebar_" .. id, { clear = true })
   return instance
 end
 
@@ -75,14 +76,14 @@ function M:open(opts)
   self:_cleanup_invalid_containers()
   
   -- Create/recreate containers using nui.split
-  self:_create_containers()
+  self:_create_nui_containers()
   
   -- Setup containers if not initialized or if we need to refresh content
   if not self._initialized then
-    Utils.debug("Setting up containers (first time)")
+    Utils.debug("Setting up nui containers (first time)")
     self:_setup_containers()
   else
-    Utils.debug("Reusing existing containers")
+    Utils.debug("Reusing existing nui containers")
     self:_refresh_container_content()
   end
   
@@ -90,7 +91,7 @@ function M:open(opts)
     vim.api.nvim_set_current_win(self.containers.input.winid)
   end
   
-  Utils.debug("ECA sidebar opened")
+  Utils.debug("ECA nui sidebar opened")
 end
 
 function M:close()
@@ -105,7 +106,7 @@ function M:_close_windows_only()
       container.winid = nil
     end
   end
-  Utils.debug("ECA sidebar windows closed")
+  Utils.debug("ECA nui sidebar windows closed")
 end
 
 function M:_close_and_cleanup()
@@ -124,7 +125,7 @@ function M:_close_and_cleanup()
     end
   end
   self.containers = {}
-  Utils.debug("ECA sidebar closed and cleaned up")
+  Utils.debug("ECA nui sidebar closed and cleaned up")
 end
 
 ---@param opts? table
@@ -200,7 +201,7 @@ function M:_cleanup_invalid_containers()
 end
 
 ---@private
-function M:_create_containers()
+function M:_create_nui_containers()
   local width = Config.get_window_width()
   
   -- Calculate dynamic heights using existing methods
@@ -245,7 +246,7 @@ function M:_create_containers()
   })
   self.containers.chat:mount()
   self:_setup_container_events(self.containers.chat, "chat")
-  Utils.debug("Mounted container: chat (winid: " .. self.containers.chat.winid .. ")")
+  Utils.debug("Mounted nui container: chat (winid: " .. self.containers.chat.winid .. ")")
   
   -- Track the last mounted container winid for relative positioning
   local last_winid = self.containers.chat.winid
@@ -270,7 +271,7 @@ function M:_create_containers()
     self.containers.selected_code:mount()
     self:_setup_container_events(self.containers.selected_code, "selected_code")
     last_winid = self.containers.selected_code.winid
-    Utils.debug("Mounted container: selected_code (winid: " .. last_winid .. ")")
+    Utils.debug("Mounted nui container: selected_code (winid: " .. last_winid .. ")")
   end
   
   -- 3. Create todos container (conditional)
@@ -292,7 +293,7 @@ function M:_create_containers()
     self.containers.todos:mount()
     self:_setup_container_events(self.containers.todos, "todos")
     last_winid = self.containers.todos.winid
-    Utils.debug("Mounted container: todos (winid: " .. last_winid .. ")")
+    Utils.debug("Mounted nui container: todos (winid: " .. last_winid .. ")")
   end
   
   -- 4. Create contexts container (always present)
@@ -313,7 +314,7 @@ function M:_create_containers()
   self.containers.contexts:mount()
   self:_setup_container_events(self.containers.contexts, "contexts")
   last_winid = self.containers.contexts.winid
-  Utils.debug("Mounted container: contexts (winid: " .. last_winid .. ")")
+  Utils.debug("Mounted nui container: contexts (winid: " .. last_winid .. ")")
   
   -- 5. Create usage container (always present)
   self.containers.usage = Split({
@@ -334,7 +335,7 @@ function M:_create_containers()
   self.containers.usage:mount()
   self:_setup_container_events(self.containers.usage, "usage")
   last_winid = self.containers.usage.winid
-  Utils.debug("Mounted container: usage (winid: " .. last_winid .. ")")
+  Utils.debug("Mounted nui container: usage (winid: " .. last_winid .. ")")
   
   -- 6. Create input container (always present)
   self.containers.input = Split({
@@ -353,9 +354,9 @@ function M:_create_containers()
   })
   self.containers.input:mount()
   self:_setup_container_events(self.containers.input, "input")
-  Utils.debug("Mounted container: input (winid: " .. self.containers.input.winid .. ")")
+  Utils.debug("Mounted nui container: input (winid: " .. self.containers.input.winid .. ")")
   
-  Utils.debug(string.format("Created containers: chat=%d, selected_code=%s, todos=%s, contexts=%d, usage=%d, input=%d", 
+  Utils.debug(string.format("Created nui containers: chat=%d, selected_code=%s, todos=%s, contexts=%d, usage=%d, input=%d", 
     chat_height, 
     selected_code_height > 0 and tostring(selected_code_height) or "hidden",
     todos_height > 0 and tostring(todos_height) or "hidden",
@@ -1092,7 +1093,7 @@ function M:_handle_server_content(params)
     -- IMPORTANT: Return immediately - do NOT display anything for toolCallPrepare
     return
   elseif content.type == "toolCalled" then
-    
+    self:_finalize_streaming_response()
     
     -- Show the final accumulated tool call if we have one
     if self._is_tool_call_streaming and self._current_tool_call then
@@ -1117,11 +1118,6 @@ end
 
 ---@param text string
 function M:_handle_streaming_text(text)
-  -- Prevent empty or nil text from causing issues
-  if not text or text == "" then
-    return
-  end
-  
   if not self._is_streaming then
     -- Check if the entire response buffer (when it starts) is just echoing the user's message
     if self._last_user_message and #self._last_user_message > 0 then
@@ -1134,72 +1130,16 @@ function M:_handle_streaming_text(text)
         Utils.debug("Skipping echo of user message: " .. trimmed_text)
         return
       end
-      
-      -- Also check for partial matches that could indicate echo
-      if #trimmed_text < #trimmed_user_msg and trimmed_user_msg:sub(1, #trimmed_text) == trimmed_text then
-        Utils.debug("Potential echo detected, continuing to accumulate...")
-        self._current_response_buffer = accumulated_text
-        return
-      end
     end
     
     -- Start streaming
     self._is_streaming = true
-    self._response_start_time = vim.fn.reltime()
     self:_add_message("assistant", "")
     self._last_assistant_line = self:_get_last_message_line()
   end
   
-  -- Safety checks to prevent infinite loops and runaway responses
-  local new_buffer = (self._current_response_buffer or "") .. text
-  
-  -- Check 1: Response size limit
-  if #new_buffer > self._max_response_length then
-    Utils.debug("Response too long (" .. #new_buffer .. " chars), finalizing")
-    self:_finalize_streaming_response()
-    return
-  end
-  
-  -- Check 2: Response timeout (30 seconds)
-  local elapsed = vim.fn.reltimefloat(vim.fn.reltime(self._response_start_time))
-  if elapsed > 30 then
-    Utils.debug("Response timeout (" .. elapsed .. "s), finalizing")
-    self:_finalize_streaming_response()
-    return
-  end
-  
-  -- Check 3: Infinite loop detection (same content repeated)
-  if #new_buffer > 1000 then
-    local half_point = math.floor(#new_buffer / 2)
-    local first_half = new_buffer:sub(1, half_point)
-    local second_half = new_buffer:sub(half_point + 1)
-    
-    if first_half == second_half then
-      Utils.debug("Infinite loop detected, finalizing response")
-      self:_finalize_streaming_response()
-      return
-    end
-  end
-  
-  -- Check 4: Detect excessive repetition
-  if #new_buffer > 500 then
-    local lines = vim.split(new_buffer, '\n')
-    if #lines > 10 then
-      local last_line = lines[#lines]
-      local second_last = lines[#lines - 1] or ""
-      local third_last = lines[#lines - 2] or ""
-      
-      -- If last 3 lines are identical, likely a loop
-      if last_line == second_last and second_last == third_last and #last_line > 10 then
-        Utils.debug("Repetitive content detected, finalizing response")
-        self:_finalize_streaming_response()
-        return
-      end
-    end
-  end
-  
   -- Accumulate text
-  self._current_response_buffer = new_buffer
+  self._current_response_buffer = (self._current_response_buffer or "") .. text
   
   -- Update the assistant's message in place
   self:_update_streaming_message(self._current_response_buffer)
@@ -1210,60 +1150,43 @@ function M:_update_streaming_message(content)
   local chat = self.containers.chat
   if not chat or self._last_assistant_line == 0 then return end
   
-  -- Use simple buffer update for streaming to avoid treesitter conflicts
-  if vim.api.nvim_buf_is_valid(chat.bufnr) then
-    pcall(function()
-      -- Temporarily make buffer modifiable
-      local was_modifiable = vim.api.nvim_get_option_value("modifiable", { buf = chat.bufnr })
-      if not was_modifiable then
-        vim.api.nvim_set_option_value("modifiable", true, { buf = chat.bufnr })
+  self:_safe_buffer_update(chat.bufnr, function()
+    local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
+    
+    -- Find the assistant message section and update content
+    local content_lines = Utils.split_lines(content)
+    local start_line = self._last_assistant_line + 2  -- Skip "## 🤖 ECA" and empty line
+    
+    -- Clear existing assistant content
+    local end_line = #lines
+    for i = start_line, #lines do
+      if lines[i] and (lines[i]:match("^## ") or lines[i]:match("^%-%-%-")) then
+        end_line = i - 1
+        break
       end
-      
-      local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
-      
-      -- Find the assistant message section and update content
-      local content_lines = Utils.split_lines(content)
-      local start_line = self._last_assistant_line + 2  -- Skip "## 🤖 ECA" and empty line
-      
-      -- Clear existing assistant content
-      local end_line = #lines
-      for i = start_line, #lines do
-        if lines[i] and (lines[i]:match("^## ") or lines[i]:match("^%-%-%-")) then
-          end_line = i - 1
-          break
-        end
+    end
+    
+    -- Insert new content
+    local new_lines = {}
+    for i = 1, start_line - 1 do
+      table.insert(new_lines, lines[i] or "")
+    end
+    
+    for _, line in ipairs(content_lines) do
+      table.insert(new_lines, line)
+    end
+    
+    table.insert(new_lines, "")
+    
+    -- Add remaining lines if any
+    for i = end_line + 1, #lines do
+      if lines[i] then
+        table.insert(new_lines, lines[i])
       end
-      
-      -- Insert new content
-      local new_lines = {}
-      for i = 1, start_line - 1 do
-        table.insert(new_lines, lines[i] or "")
-      end
-      
-      for _, line in ipairs(content_lines) do
-        table.insert(new_lines, line)
-      end
-      
-      table.insert(new_lines, "")
-      
-      -- Add remaining lines if any
-      for i = end_line + 1, #lines do
-        if lines[i] then
-          table.insert(new_lines, lines[i])
-        end
-      end
-      
-      vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, new_lines)
-      
-      -- Restore modifiable state
-      if not was_modifiable then
-        vim.api.nvim_set_option_value("modifiable", was_modifiable, { buf = chat.bufnr })
-      end
-      
-      -- Auto-scroll to bottom during streaming
-      self:_scroll_to_bottom()
-    end)
-  end
+    end
+    
+    vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, new_lines)
+  end)
 end
 
 ---@param role string
@@ -1321,9 +1244,6 @@ function M:_add_message(role, content)
     
     -- Update buffer safely
     vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
-    
-    -- Auto-scroll to bottom after adding new message
-    self:_scroll_to_bottom()
   end)
   
   -- Store assistant message line for streaming updates
@@ -1337,32 +1257,7 @@ function M:_finalize_streaming_response()
     self._is_streaming = false
     self._current_response_buffer = ""
     self._last_assistant_line = 0
-    self._response_start_time = 0
-    
-    -- Final scroll to bottom when streaming finishes
-    self:_scroll_to_bottom()
   end
-end
-
----Auto-scroll to bottom of the chat
-function M:_scroll_to_bottom()
-  local chat = self.containers.chat
-  if not chat or not vim.api.nvim_win_is_valid(chat.winid) then return end
-  
-  -- Get total number of lines in buffer
-  local line_count = vim.api.nvim_buf_line_count(chat.bufnr)
-  
-  -- Set cursor to the last line and scroll to bottom
-  vim.defer_fn(function()
-    if vim.api.nvim_win_is_valid(chat.winid) and vim.api.nvim_buf_is_valid(chat.bufnr) then
-      -- Set cursor to last line
-      vim.api.nvim_win_set_cursor(chat.winid, {line_count, 0})
-      -- Ensure the last line is visible
-      vim.api.nvim_win_call(chat.winid, function()
-        vim.cmd("normal! zb")  -- scroll so cursor line is at bottom of window
-      end)
-    end
-  end, 50) -- Small delay to ensure buffer is updated
 end
 
 function M:_get_last_message_line()
@@ -1383,58 +1278,25 @@ end
 function M:_safe_buffer_update(bufnr, callback)
   if not vim.api.nvim_buf_is_valid(bufnr) then return end
   
-  -- Simple but effective approach: disable highlighting during updates
-  local original_eventignore = vim.o.eventignore
-  local original_syntax = vim.api.nvim_get_option_value("syntax", { buf = bufnr })
-  local original_modifiable = vim.api.nvim_get_option_value("modifiable", { buf = bufnr })
+  -- Temporarily disable treesitter and syntax to prevent errors during updates
+  local ts_hl_enabled = pcall(vim.treesitter.get_parser, bufnr)
+  local syntax_enabled = vim.api.nvim_get_option_value("syntax", { buf = bufnr })
   
-  -- Temporarily disable events and highlighting to prevent treesitter issues
-  vim.o.eventignore = "all"
-  pcall(vim.api.nvim_set_option_value, "syntax", "off", { buf = bufnr })
-  pcall(vim.api.nvim_set_option_value, "modifiable", true, { buf = bufnr })
-  
-  -- Disable treesitter highlighting for this buffer temporarily
-  pcall(function()
-    if vim.treesitter.highlighter.active[bufnr] then
-      Utils.debug("Temporarily disabling treesitter for buffer " .. bufnr)
-      vim.treesitter.highlighter.active[bufnr]:destroy()
-      vim.treesitter.highlighter.active[bufnr] = nil
-    end
-  end)
-  
-  -- Execute the buffer update with maximum protection
-  local success, err = pcall(callback)
-  if not success then
-    Utils.debug("Buffer update failed: " .. tostring(err))
+  if ts_hl_enabled then
+    pcall(vim.api.nvim_set_option_value, "syntax", "off", { buf = bufnr })
   end
   
-  -- Restore original state immediately (no delay for critical settings)
-  vim.o.eventignore = original_eventignore
-  pcall(vim.api.nvim_set_option_value, "modifiable", original_modifiable, { buf = bufnr })
+  -- Execute the callback
+  pcall(callback)
   
-  -- Re-enable highlighting with a delay to prevent conflicts
-  vim.defer_fn(function()
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      -- Restore syntax highlighting
-      if original_syntax and original_syntax ~= "off" then
-        pcall(vim.api.nvim_set_option_value, "syntax", original_syntax, { buf = bufnr })
+  -- Re-enable syntax with a delay to allow content to settle
+  if ts_hl_enabled and syntax_enabled ~= "off" then
+    vim.defer_fn(function()
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        pcall(vim.api.nvim_set_option_value, "syntax", syntax_enabled, { buf = bufnr })
       end
-      
-      -- Re-initialize treesitter highlighting carefully
-      pcall(function()
-        local ok, parser = pcall(vim.treesitter.get_parser, bufnr)
-        if ok and parser then
-          -- Only create highlighter if one doesn't exist and buffer is still valid
-          if not vim.treesitter.highlighter.active[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
-            Utils.debug("Re-enabling treesitter for buffer " .. bufnr)
-            vim.treesitter.highlighter.new(parser, {})
-          end
-        else
-          Utils.debug("No treesitter parser available for buffer " .. bufnr)
-        end
-      end)
-    end
-  end, 200) -- Longer delay to ensure stability
+    end, 100)
+  end
 end
 
 -- ===== Tool call handling methods =====
@@ -1473,6 +1335,11 @@ end
 function M:_finalize_tool_call()
   self._current_tool_call = nil
   self._is_tool_call_streaming = false
+end
+
+-- Helper function from utils
+local function trim(str)
+  return str:match("^%s*(.-)%s*$")
 end
 
 return M

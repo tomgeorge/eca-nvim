@@ -17,12 +17,16 @@ M._defaults = {
     auto_download = true, -- Automatically download server if not found
     show_status_updates = true, -- Show status updates in notifications
   },
-  markview = {
-    enable = true, -- Enable markview.nvim integration
-    filetypes = { "markdown", "Eca" }, -- Filetypes to enable markview
-  },
   context = {
     auto_repo_map = true, -- Automatically add repoMap context when starting new chat
+  },
+  todos = {
+    enabled = true, -- Enable todos functionality
+    max_height = 5, -- Maximum height for todos container
+  },
+  selected_code = {
+    enabled = true, -- Enable selected code display
+    max_height = 8, -- Maximum height for selected code container
   },
   mappings = {
     chat = "<leader>ec",

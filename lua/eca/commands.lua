@@ -42,9 +42,14 @@ function M.setup()
   })
 
   vim.api.nvim_create_user_command("EcaAddSelection", function()
-    require("eca.api").add_selection_context()
+    -- Force exit visual mode and set marks
+    vim.cmd('normal! \\<Esc>')
+    vim.defer_fn(function()
+      require("eca.api").add_selection_context()
+    end, 50) -- Small delay to ensure marks are set
   end, {
     desc = "Add current selection as context to ECA",
+    range = true,
   })
 
   vim.api.nvim_create_user_command("EcaListContexts", function()
@@ -75,6 +80,61 @@ function M.setup()
     require("eca.api").add_repo_map_context()
   end, {
     desc = "Add repository map context to ECA",
+  })
+
+  -- ===== Selected Code Commands =====
+  
+  vim.api.nvim_create_user_command("EcaShowSelection", function()
+    require("eca.api").show_selected_code()
+  end, {
+    desc = "Show currently selected code in ECA",
+  })
+
+  vim.api.nvim_create_user_command("EcaClearSelection", function()
+    require("eca.api").clear_selected_code()
+  end, {
+    desc = "Clear selected code from ECA",
+  })
+
+  -- ===== TODOs Commands =====
+  
+  vim.api.nvim_create_user_command("EcaAddTodo", function(opts)
+    if opts.args and opts.args ~= "" then
+      require("eca.api").add_todo(opts.args)
+    else
+      Utils.warn("Please provide TODO content")
+    end
+  end, {
+    desc = "Add a new TODO to ECA",
+    nargs = "+",
+  })
+
+  vim.api.nvim_create_user_command("EcaListTodos", function()
+    require("eca.api").list_todos()
+  end, {
+    desc = "List active TODOs in ECA",
+  })
+
+  vim.api.nvim_create_user_command("EcaToggleTodo", function(opts)
+    if opts.args and opts.args ~= "" then
+      local index = tonumber(opts.args)
+      if index then
+        require("eca.api").toggle_todo(index)
+      else
+        Utils.warn("Please provide a valid TODO index")
+      end
+    else
+      Utils.warn("Please provide TODO index to toggle")
+    end
+  end, {
+    desc = "Toggle TODO completion status",
+    nargs = 1,
+  })
+
+  vim.api.nvim_create_user_command("EcaClearTodos", function()
+    require("eca.api").clear_todos()
+  end, {
+    desc = "Clear all TODOs from ECA",
   })
 
   vim.api.nvim_create_user_command("EcaServerStart", function()
@@ -172,6 +232,54 @@ function M.setup()
     end, 1000)
   end, {
     desc = "Force re-download of ECA server",
+  })
+
+  vim.api.nvim_create_user_command("EcaStopResponse", function()
+    local eca = require("eca")
+    local Utils = require("eca.utils")
+    
+    -- Force stop any ongoing streaming response
+    if eca.sidebar then
+      eca.sidebar:_finalize_streaming_response()
+      Utils.info("Forced stop of streaming response")
+    else
+      Utils.warn("No active sidebar to stop")
+    end
+  end, {
+    desc = "Emergency stop for infinite loops or runaway responses",
+  })
+
+  vim.api.nvim_create_user_command("EcaFixTreesitter", function()
+    local Utils = require("eca.utils")
+    
+    -- Emergency treesitter fix for chat buffer
+    vim.schedule(function()
+      local eca = require("eca")
+      if eca.sidebar and eca.sidebar.containers and eca.sidebar.containers.chat then
+        local bufnr = eca.sidebar.containers.chat.bufnr
+        if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+          -- Disable all highlighting for this buffer
+          pcall(vim.api.nvim_set_option_value, "syntax", "off", { buf = bufnr })
+          
+          -- Destroy treesitter highlighter if it exists
+          pcall(function()
+            if vim.treesitter.highlighter.active[bufnr] then
+              vim.treesitter.highlighter.active[bufnr]:destroy()
+              vim.treesitter.highlighter.active[bufnr] = nil
+            end
+          end)
+          
+          Utils.info("Disabled treesitter highlighting for ECA chat buffer")
+          Utils.info("Buffer " .. bufnr .. " highlighting disabled")
+        else
+          Utils.warn("No valid chat buffer found")
+        end
+      else
+        Utils.warn("No active ECA sidebar found")
+      end
+    end)
+  end, {
+    desc = "Emergency fix for treesitter issues in ECA chat",
   })
 
   Utils.debug("ECA commands registered")
