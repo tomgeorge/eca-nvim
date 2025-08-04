@@ -12,6 +12,7 @@ local PathFinder = require("eca.path_finder")
 ---@field private _server_capabilities? table Server capabilities
 ---@field private _chat_id? string Current chat ID
 ---@field private _path_finder eca.PathFinder Server path finder
+---@field private _logs table Array of log entries
 local M = {}
 M.__index = M
 
@@ -32,6 +33,7 @@ function M:new(opts)
   instance._on_started = opts.on_started
   instance._on_status_changed = opts.on_status_changed
   instance._path_finder = PathFinder:new()
+  instance._logs = {}
   return instance
 end
 
@@ -51,6 +53,29 @@ end
 ---@return boolean
 function M:is_running()
   return self._status == ServerStatus.Running
+end
+
+---@param level string Log level (INFO, WARN, ERROR, DEBUG)
+---@param message string Log message
+function M:_add_log(level, message)
+  local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+  local log_entry = {
+    timestamp = timestamp,
+    level = level,
+    message = message
+  }
+  
+  table.insert(self._logs, log_entry)
+  
+  -- Keep only last 1000 log entries to prevent memory issues
+  if #self._logs > 1000 then
+    table.remove(self._logs, 1)
+  end
+end
+
+---@return table Array of log entries
+function M:get_logs()
+  return vim.deepcopy(self._logs)
 end
 
 ---@return table?
@@ -84,11 +109,14 @@ function M:start()
   
   if not ok or not server_path then
     self:_change_status(ServerStatus.Failed)
-    Utils.error("Could not find or download ECA server: " .. tostring(err))
+    local error_msg = "Could not find or download ECA server: " .. tostring(err)
+    Utils.error(error_msg)
+    self:_add_log("ERROR", error_msg)
     return
   end
   
   Utils.debug("Starting ECA server: " .. server_path)
+  self:_add_log("INFO", "Starting ECA server: " .. server_path)
   
   local args = { server_path, "server" }
   if Config.server_args and Config.server_args ~= "" then
@@ -109,9 +137,20 @@ function M:start()
     end,
     on_stderr = function(_, data, _)
       if data then
-        local error_output = table.concat(data, "\n")
-        if error_output and error_output ~= "" and error_output ~= "\n" then
+        -- Filter out empty lines and join meaningful content
+        local meaningful_lines = {}
+        for _, line in ipairs(data) do
+          local trimmed = line:match("^%s*(.-)%s*$") -- Trim whitespace
+          if trimmed and trimmed ~= "" then
+            table.insert(meaningful_lines, trimmed)
+          end
+        end
+        
+        if #meaningful_lines > 0 then
+          local error_output = table.concat(meaningful_lines, "\n")
           Utils.debug("ECA server stderr: " .. error_output)
+          -- Capture logs for the logs buffer
+          self:_add_log("SERVER", error_output)
         end
       end
     end,
@@ -134,11 +173,14 @@ function M:start()
   
   if self._proc <= 0 then
     self:_change_status(ServerStatus.Failed)
-    Utils.error("Failed to start ECA server process. Job ID: " .. tostring(self._proc))
+    local error_msg = "Failed to start ECA server process. Job ID: " .. tostring(self._proc)
+    Utils.error(error_msg)
+    self:_add_log("ERROR", error_msg)
     return
   end
   
   Utils.debug("ECA server started with job ID: " .. self._proc)
+  self:_add_log("INFO", "ECA server process started successfully (Job ID: " .. self._proc .. ")")
   
   -- Create RPC connection with the job ID
   self._rpc = RPC:new(self._proc)
@@ -200,7 +242,9 @@ function M:_initialize_server()
   }, function(err, result)
     if err then
       self:_change_status(ServerStatus.Failed)
-      Utils.error("Failed to initialize ECA server: " .. tostring(err))
+      local error_msg = "Failed to initialize ECA server: " .. tostring(err)
+      Utils.error(error_msg)
+      self:_add_log("ERROR", error_msg)
       return
     end
     
@@ -208,10 +252,12 @@ function M:_initialize_server()
     if result then
       self._server_capabilities = result
       Utils.debug("Server capabilities: " .. vim.inspect(result))
+      self:_add_log("INFO", "Server capabilities received and stored")
     end
     
     self:_change_status(ServerStatus.Running)
     Utils.info("ECA server started successfully")
+    self:_add_log("INFO", "ECA server initialized and running successfully")
     
     -- Send initialized notification
     self._rpc:send_notification("initialized", {})
@@ -226,6 +272,8 @@ function M:stop()
   if self._status == ServerStatus.Stopped then
     return
   end
+  
+  self:_add_log("INFO", "Stopping ECA server...")
   
   if self._rpc then
     self._rpc:send_request("shutdown", {}, function()
@@ -252,6 +300,7 @@ function M:stop()
   self._chat_id = nil
   self:_change_status(ServerStatus.Stopped)
   Utils.info("ECA server stopped")
+  self:_add_log("INFO", "ECA server stopped successfully")
 end
 
 ---@param method string
