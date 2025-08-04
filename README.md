@@ -24,7 +24,39 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 #### Basic Configuration
 
 ```lua
-{ "editor-code-assistant/eca-nvim", opts = {} }
+{
+  "editor-code-assistant/eca-nvim",
+  dependencies = {
+    "MunifTanjim/nui.nvim",   -- Required: UI framework
+    "nvim-lua/plenary.nvim",  -- Optional: Enhanced async operations
+  },
+  opts = {}
+}
+```
+
+#### Advanced Configuration
+
+```lua
+{
+  "editor-code-assistant/eca-nvim",
+  dependencies = {
+    "MunifTanjim/nui.nvim",   -- Required: UI framework
+    "nvim-lua/plenary.nvim",  -- Optional: Enhanced async operations
+  },
+  keys = {
+    { "<leader>ec", "<cmd>EcaChat<cr>", desc = "Open ECA chat" },
+    { "<leader>ef", "<cmd>EcaFocus<cr>", desc = "Focus ECA sidebar" },
+    { "<leader>et", "<cmd>EcaToggle<cr>", desc = "Toggle ECA sidebar" },
+  },
+  opts = {
+    debug = false,
+    server_path = "",
+    behaviour = {
+      auto_set_keymaps = true,
+      auto_focus_sidebar = true,
+    },
+  }
+}
 ```
 
 ### 📦 [packer.nvim](https://github.com/wbthomason/packer.nvim)
@@ -33,8 +65,8 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 use {
   "editor-code-assistant/eca-nvim",
   requires = {
-    -- Required for enhanced UI components
-    "MunifTanjim/nui.nvim",
+    "MunifTanjim/nui.nvim",   -- Required: UI framework
+    "nvim-lua/plenary.nvim",  -- Optional: Enhanced async operations
   },
   config = function()
     require("eca").setup({
@@ -53,6 +85,9 @@ Plug 'editor-code-assistant/eca-nvim'
 " Required dependencies
 Plug 'MunifTanjim/nui.nvim'
 
+" Optional dependencies (enhanced async operations)
+Plug 'nvim-lua/plenary.nvim'
+
 " After the plugins, add:
 lua << EOF
 require("eca").setup({
@@ -69,9 +104,14 @@ call dein#add('editor-code-assistant/eca-nvim')
 " Required dependencies
 call dein#add('MunifTanjim/nui.nvim')
 
+" Optional dependencies (enhanced async operations)
+call dein#add('nvim-lua/plenary.nvim')
+
 " Configuration
 lua << EOF
-require("eca").setup()
+require("eca").setup({
+  -- Your configurations here
+})
 EOF
 ```
 
@@ -80,10 +120,13 @@ EOF
 ```toml
 # rocks.toml
 [plugins]
-"eca-neovim" = { git = "editor-code-assistant/eca-nvim" }
+"eca-nvim" = { git = "editor-code-assistant/eca-nvim" }
 
 # Required dependencies
 "nui.nvim" = { git = "MunifTanjim/nui.nvim" }
+
+# Optional dependencies (enhanced async operations)
+"plenary.nvim" = { git = "nvim-lua/plenary.nvim" }
 ```
 
 ### 🌱 [mini.deps](https://github.com/echasnovski/mini.nvim)
@@ -94,12 +137,14 @@ local add = MiniDeps.add
 add({
   source = "editor-code-assistant/eca-nvim",
   depends = {
-    -- Required dependencies
-    "MunifTanjim/nui.nvim",
+    "MunifTanjim/nui.nvim",   -- Required: UI framework
+    "nvim-lua/plenary.nvim",  -- Optional: Enhanced async operations
   }
 })
 
-require("eca").setup()
+require("eca").setup({
+  -- Your configurations here
+})
 ```
 
 ## ⚡ Quick Start

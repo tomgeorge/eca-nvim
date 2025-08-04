@@ -1,9 +1,10 @@
 -- Plugin specification for package managers
 return {
-  name = "eca-neovim",
+  name = "eca-nvim",
   description = "ECA (Editor Code Assistant) integration for Neovim",
   dependencies = {
-    "nvim-lua/plenary.nvim", -- For async operations (optional)
+    "MunifTanjim/nui.nvim",   -- UI framework (required)
+    "nvim-lua/plenary.nvim",  -- For async operations (optional)
   },
   config = function()
     require("eca").setup({
@@ -39,5 +40,6 @@ return {
     "EcaServerRestart",
     "EcaServerStatus",
     "EcaSend",
+    "EcaLogs",
   },
 }
