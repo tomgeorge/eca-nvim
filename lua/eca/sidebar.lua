@@ -788,8 +788,6 @@ function M:_set_welcome_content()
     "",
     "---",
     "",
-    "**💬 Messages will appear here:**",
-    "",
   }
   
   Utils.debug("Setting welcome content for new chat")
@@ -1223,12 +1221,12 @@ function M:_update_streaming_message(content)
       
       -- Find the assistant message section and update content
       local content_lines = Utils.split_lines(content)
-      local start_line = self._last_assistant_line + 2  -- Skip "## 🤖 ECA" and empty line
+      local start_line = self._last_assistant_line
       
       -- Clear existing assistant content
       local end_line = #lines
       for i = start_line, #lines do
-        if lines[i] and (lines[i]:match("^## ") or lines[i]:match("^%-%-%-")) then
+        if lines[i] and lines[i]:match("^%-%-%-") then
           end_line = i - 1
           break
         end
@@ -1281,16 +1279,7 @@ function M:_add_message(role, content)
       table.insert(lines, "---")
       table.insert(lines, "")
     end
-    
-    -- Add role header with better markdown formatting
-    if role == "user" then
-      table.insert(lines, "## 👤 You")
-    else
-      table.insert(lines, "## 🤖 ECA")
-    end
-    
-    table.insert(lines, "")
-    
+
     -- Add content with better markdown formatting
     local content_lines = Utils.split_lines(content)
     
@@ -1312,8 +1301,17 @@ function M:_add_message(role, content)
       table.insert(lines, "```")
     else
       -- Regular text content
-      for _, line in ipairs(content_lines) do
-        table.insert(lines, line)
+      for i, line in ipairs(content_lines) do
+        if i == 1 then
+          if role == "user" then
+            table.insert(lines, "> " .. line)
+          end
+          if role == "assistant" then
+            table.insert(lines, "🤖 " .. line)
+          end
+        else
+          table.insert(lines, line)
+        end
       end
     end
     
@@ -1371,7 +1369,7 @@ function M:_get_last_message_line()
   
   local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
   for i = #lines, 1, -1 do
-    if lines[i] and lines[i]:match("^## 🤖 ECA") then
+    if lines[i] and lines[i]:match("^🤖 ") then
       return i
     end
   end
