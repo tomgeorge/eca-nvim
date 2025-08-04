@@ -32,6 +32,10 @@ end
 local M = {}
 M.__index = M
 
+-- Height calculation constants
+local MIN_CHAT_HEIGHT = 10          -- Minimum lines for chat container to remain usable
+local WINDOW_MARGIN = 3              -- Additional margin for window borders and spacing
+
 ---@param id integer Tab ID
 ---@return eca.Sidebar
 function M:new(id)
@@ -203,6 +207,10 @@ end
 function M:_create_containers()
   local width = Config.get_window_width()
   
+  -- Height calculation constants
+  local UI_ELEMENTS_HEIGHT = 2        -- Reserve space for statusline and tabline
+  local SAFETY_MARGIN = 2             -- Extra margin to prevent "Not enough room" errors
+  
   -- Calculate dynamic heights using existing methods
   local input_height = Config.windows.input.height
   local usage_height = 1
@@ -214,12 +222,21 @@ function M:_create_containers()
   
   -- Validate total height to prevent "Not enough room" error
   local total_height = chat_height + selected_code_height + todos_height + status_height + contexts_height + input_height + usage_height
-  local available_height = vim.api.nvim_win_get_height(0)
+  
+  -- Calculate available height more accurately for sidebar placement
+  -- Use existing chat container if available, otherwise calculate from editor dimensions
+  local available_height
+  if self.containers.chat and self.containers.chat.winid and vim.api.nvim_win_is_valid(self.containers.chat.winid) then
+    available_height = vim.api.nvim_win_get_height(self.containers.chat.winid)
+  else
+    -- Calculate from total screen minus UI elements (more accurate than current window)
+    available_height = vim.o.lines - vim.o.cmdheight - UI_ELEMENTS_HEIGHT
+  end
   
   if total_height > available_height then
     Utils.debug(string.format("Total height (%d) exceeds available height (%d), adjusting chat height", total_height, available_height))
-    local extra_height = total_height - available_height + 2 -- +2 for safety margin
-    chat_height = math.max(10, chat_height - extra_height) -- Minimum 10 lines for chat
+    local extra_height = total_height - available_height + SAFETY_MARGIN
+    chat_height = math.max(MIN_CHAT_HEIGHT, chat_height - extra_height)
     Utils.debug(string.format("Adjusted chat height from %d to %d", self:get_chat_height(), chat_height))
   end
   
@@ -548,9 +565,9 @@ function M:get_chat_height()
   local selected_code_height = self:get_selected_code_height()
   local todos_height = self:get_todos_height()
   
-  return math.max(10, 
+  return math.max(MIN_CHAT_HEIGHT, 
     total_height - input_height - usage_height - status_height - contexts_height 
-    - selected_code_height - todos_height - 3
+    - selected_code_height - todos_height - WINDOW_MARGIN
   )
 end
 
