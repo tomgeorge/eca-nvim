@@ -32,6 +32,12 @@ end
 local M = {}
 M.__index = M
 
+-- Height calculation constants
+local MIN_CHAT_HEIGHT = 10          -- Minimum lines for chat container to remain usable
+local WINDOW_MARGIN = 3              -- Additional margin for window borders and spacing
+local UI_ELEMENTS_HEIGHT = 2         -- Reserve space for statusline and tabline
+local SAFETY_MARGIN = 2              -- Extra margin to prevent "Not enough room" errors
+
 ---@param id integer Tab ID
 ---@return eca.Sidebar
 function M:new(id)
@@ -210,7 +216,21 @@ function M:_create_containers()
   local contexts_height = self:get_contexts_height()
   local selected_code_height = self:get_selected_code_height()
   local todos_height = self:get_todos_height()
-  local chat_height = self:get_chat_height()
+  local original_chat_height = self:get_chat_height()
+  local chat_height = original_chat_height
+  
+  -- Validate total height to prevent "Not enough room" error
+  local total_height = chat_height + selected_code_height + todos_height + status_height + contexts_height + input_height + usage_height
+  
+  -- Always calculate from total screen minus UI elements (more accurate than current window)
+  local available_height = vim.o.lines - UI_ELEMENTS_HEIGHT
+  
+  if total_height > available_height then
+    Utils.debug(string.format("Total height (%d) exceeds available height (%d), adjusting chat height", total_height, available_height))
+    local extra_height = total_height - (available_height - SAFETY_MARGIN)
+    chat_height = math.max(MIN_CHAT_HEIGHT, chat_height - extra_height)
+    Utils.debug(string.format("Adjusted chat height from %d to %d", original_chat_height, chat_height))
+  end
   
   -- Base options for all containers
   local base_buf_options = {
@@ -247,16 +267,16 @@ function M:_create_containers()
   self.containers.chat:mount()
   self:_setup_container_events(self.containers.chat, "chat")
   
-  -- Track the last mounted container winid for relative positioning
-  local last_winid = self.containers.chat.winid
-  Utils.debug("Mounted container: chat (winid: " .. last_winid .. ")")
+  -- Track the current container for hierarchical mounting with proper space management
+  local current_winid = self.containers.chat.winid
+  Utils.debug("Mounted container: chat (winid: " .. current_winid .. ")")
   
   -- 2. Create selected_code container (conditional)
   if selected_code_height > 0 then
     self.containers.selected_code = Split({
       relative = {
         type = "win",
-        winid = last_winid,
+        winid = current_winid,
       },
       position = "bottom",
       size = { height = selected_code_height },
@@ -270,8 +290,8 @@ function M:_create_containers()
     })
     self.containers.selected_code:mount()
     self:_setup_container_events(self.containers.selected_code, "selected_code")
-    last_winid = self.containers.selected_code.winid
-    Utils.debug("Mounted container: selected_code (winid: " .. last_winid .. ")")
+    current_winid = self.containers.selected_code.winid
+    Utils.debug("Mounted container: selected_code (winid: " .. current_winid .. ")")
   end
   
   -- 3. Create todos container (conditional)
@@ -279,7 +299,7 @@ function M:_create_containers()
     self.containers.todos = Split({
       relative = {
         type = "win",
-        winid = last_winid,
+        winid = current_winid,
       },
       position = "bottom",
       size = { height = todos_height },
@@ -292,15 +312,15 @@ function M:_create_containers()
     })
     self.containers.todos:mount()
     self:_setup_container_events(self.containers.todos, "todos")
-    last_winid = self.containers.todos.winid
-    Utils.debug("Mounted container: todos (winid: " .. last_winid .. ")")
+    current_winid = self.containers.todos.winid
+    Utils.debug("Mounted container: todos (winid: " .. current_winid .. ")")
   end
   
   -- 4. Create status container (always present) - for processing messages
   self.containers.status = Split({
     relative = {
       type = "win",
-      winid = last_winid,
+      winid = current_winid,
     },
     position = "bottom",
     size = { height = status_height },
@@ -313,14 +333,14 @@ function M:_create_containers()
   })
   self.containers.status:mount()
   self:_setup_container_events(self.containers.status, "status")
-  last_winid = self.containers.status.winid
-  Utils.debug("Mounted container: status (winid: " .. last_winid .. ")")
+  current_winid = self.containers.status.winid
+  Utils.debug("Mounted container: status (winid: " .. current_winid .. ")")
   
   -- 5. Create contexts container between status and input
   self.containers.contexts = Split({
     relative = {
       type = "win",
-      winid = last_winid,
+      winid = current_winid,
     },
     position = "bottom",
     size = { height = contexts_height },
@@ -333,14 +353,14 @@ function M:_create_containers()
   })
   self.containers.contexts:mount()
   self:_setup_container_events(self.containers.contexts, "contexts")
-  last_winid = self.containers.contexts.winid
-  Utils.debug("Mounted container: contexts (winid: " .. last_winid .. ")")
+  current_winid = self.containers.contexts.winid
+  Utils.debug("Mounted container: contexts (winid: " .. current_winid .. ")")
   
   -- 6. Create input container (always present)
   self.containers.input = Split({
     relative = {
       type = "win",
-      winid = last_winid,
+      winid = current_winid,
     },
     position = "bottom",
     size = { height = input_height },
@@ -353,14 +373,14 @@ function M:_create_containers()
   })
   self.containers.input:mount()
   self:_setup_container_events(self.containers.input, "input")
-  last_winid = self.containers.input.winid
-  Utils.debug("Mounted container: input (winid: " .. last_winid .. ")")
+  current_winid = self.containers.input.winid
+  Utils.debug("Mounted container: input (winid: " .. current_winid .. ")")
   
   -- 7. Create usage container (always present) - moved to bottom
   self.containers.usage = Split({
     relative = {
       type = "win",
-      winid = last_winid,
+      winid = current_winid,
     },
     position = "bottom",
     size = { height = usage_height },
@@ -537,9 +557,9 @@ function M:get_chat_height()
   local selected_code_height = self:get_selected_code_height()
   local todos_height = self:get_todos_height()
   
-  return math.max(10, 
+  return math.max(MIN_CHAT_HEIGHT, 
     total_height - input_height - usage_height - status_height - contexts_height 
-    - selected_code_height - todos_height - 3
+    - selected_code_height - todos_height - WINDOW_MARGIN
   )
 end
 
