@@ -183,6 +183,12 @@ function M.setup()
     desc = "Show ECA server status with details",
   })
 
+  vim.api.nvim_create_user_command("EcaLogs", function()
+    require("eca.api").show_logs()
+  end, {
+    desc = "Open ECA server logs in a new buffer",
+  })
+
   vim.api.nvim_create_user_command("EcaSend", function(opts)
     if opts.args and opts.args ~= "" then
       require("eca.api").send_message(opts.args)

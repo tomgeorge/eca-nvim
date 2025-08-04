@@ -1,5 +1,8 @@
 local Utils = require("eca.utils")
 
+-- Load nui.nvim components for floating windows
+local Popup = require("nui.popup")
+
 ---@class eca.Api
 local M = {}
 
@@ -386,6 +389,127 @@ function M.clear_todos()
   else
     Utils.warn("ECA sidebar not available")
   end
+end
+
+-- Keep reference to logs popup globally to reuse it
+local logs_popup = nil
+
+function M.show_logs()
+  local eca = require("eca")
+  
+  if not eca.server then
+    Utils.warn("ECA server not initialized")
+    return
+  end
+  
+  local logs = eca.server:get_logs()
+  
+  if #logs == 0 then
+    Utils.info("No ECA server logs available")
+    return
+  end
+  
+  -- Format logs
+  local lines = {}
+  
+  for _, log_entry in ipairs(logs) do
+    -- Split message by newlines to handle multi-line log entries
+    local message_lines = vim.split(log_entry.message, "\n", { plain = true })
+    
+    for i, message_line in ipairs(message_lines) do
+      if i == 1 then
+        -- First line gets full timestamp and level
+        local formatted_line = string.format("[%s] %s: %s", 
+          log_entry.timestamp, 
+          log_entry.level, 
+          message_line)
+        table.insert(lines, formatted_line)
+      else
+        -- Continuation lines are indented
+        table.insert(lines, "    " .. message_line)
+      end
+    end
+  end
+  
+  if #logs > 0 then
+    table.insert(lines, "")
+    table.insert(lines, string.format("--- %d log entries ---", #logs))
+  end
+  
+  -- If popup already exists and is mounted, update content
+  if logs_popup and logs_popup.winid and vim.api.nvim_win_is_valid(logs_popup.winid) then
+    -- Update existing popup content
+    vim.api.nvim_set_option_value("modifiable", true, { buf = logs_popup.bufnr })
+    vim.api.nvim_buf_set_lines(logs_popup.bufnr, 0, -1, false, lines)
+    vim.api.nvim_set_option_value("modifiable", false, { buf = logs_popup.bufnr })
+    
+    -- Jump to end to show latest logs
+    vim.api.nvim_win_set_cursor(logs_popup.winid, {#lines, 0})
+    Utils.info("Updated ECA server logs (" .. #logs .. " entries)")
+    return
+  end
+  
+  -- Calculate popup size (responsive)
+  local width = math.floor(vim.o.columns * 0.8)
+  local height = math.floor(vim.o.lines * 0.7)
+  
+  -- Create new floating popup
+  logs_popup = Popup({
+    enter = true,
+    focusable = true,
+    border = {
+      style = "rounded",
+      text = {
+        top = " 📋 ECA Server Logs ",
+        top_align = "center",
+      },
+    },
+    position = "50%",
+    size = {
+      width = width,
+      height = height,
+    },
+    buf_options = {
+      buftype = "nofile",
+      bufhidden = "hide",
+      swapfile = false,
+      modifiable = true,
+      filetype = "log",
+    },
+    win_options = {
+      wrap = false,
+      number = false,
+      relativenumber = false,
+      signcolumn = "no",
+      cursorline = true,
+    },
+  })
+  
+  -- Mount the popup
+  logs_popup:mount()
+  
+  -- Set content
+  vim.api.nvim_buf_set_lines(logs_popup.bufnr, 0, -1, false, lines)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = logs_popup.bufnr })
+  
+  -- Jump to end to show latest logs
+  vim.api.nvim_win_set_cursor(logs_popup.winid, {#lines, 0})
+  
+  -- Setup close keymaps
+  logs_popup:map("n", "q", function()
+    logs_popup:unmount()
+  end, { noremap = true, silent = true })
+  
+  logs_popup:map("n", "<Esc>", function()
+    logs_popup:unmount()
+  end, { noremap = true, silent = true })
+  
+  -- Clean up reference when popup is closed
+  logs_popup:on("BufWinLeave", function()
+    logs_popup = nil
+  end)
+  
+  Utils.info("Opened ECA server logs (" .. #logs .. " entries) - Press 'q' or <Esc> to close")
 end
 
 return M
