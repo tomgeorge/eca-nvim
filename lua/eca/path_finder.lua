@@ -1,3 +1,4 @@
+local uv = vim.uv or vim.loop
 local Utils = require("eca.utils")
 local Config = require("eca.config")
 
@@ -37,9 +38,9 @@ end
 ---@param arch? string
 ---@return string
 function M:_get_artifact_name(platform, arch)
-  platform = platform or vim.loop.os_uname().sysname:lower()
-  arch = arch or vim.loop.os_uname().machine
-  
+  platform = platform or uv.os_uname().sysname:lower()
+  arch = arch or uv.os_uname().machine
+
   -- Normalize platform names
   if platform:match("darwin") then
     platform = "darwin"
@@ -65,14 +66,14 @@ end
 function M:_get_extension_server_path(platform, arch)
   local artifact_name = self:_get_artifact_name(platform, arch)
   local name
-  
+
   if artifact_name:match("%.jar$") then
     name = "eca.jar"
   else
-    platform = platform or vim.loop.os_uname().sysname:lower()
+    platform = platform or uv.os_uname().sysname:lower()
     name = platform:match("windows") and "eca.exe" or "eca"
   end
-  
+
   return self._cache_dir .. "/" .. name
 end
 

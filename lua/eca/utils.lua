@@ -1,3 +1,5 @@
+local uv = vim.uv or vim.loop
+
 local M = {}
 
 local CONSTANTS = {
@@ -92,14 +94,14 @@ end
 ---@param path string
 ---@return boolean
 function M.file_exists(path)
-  local stat = vim.loop.fs_stat(path)
+  local stat = uv.fs_stat(path)
   return stat and stat.type == "file"
 end
 
 ---@param dir string
 ---@return boolean
 function M.dir_exists(dir)
-  local stat = vim.loop.fs_stat(dir)
+  local stat = uv.fs_stat(dir)
   return stat and stat.type == "directory"
 end
 
@@ -132,12 +134,12 @@ function M.read_file(path)
   if not M.file_exists(path) then
     return nil
   end
-  
+
   local file = io.open(path, "r")
   if not file then
     return nil
   end
-  
+
   local content = file:read("*a")
   file:close()
   return content
@@ -151,7 +153,7 @@ function M.write_file(path, content)
   if not file then
     return false
   end
-  
+
   file:write(content)
   file:close()
   return true
