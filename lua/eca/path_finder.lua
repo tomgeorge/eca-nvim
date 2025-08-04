@@ -137,7 +137,7 @@ function M:_download_latest_server(server_path, version)
   
   local download_path = self._cache_dir .. "/" .. artifact_name
   
-  Utils.info("Downloading ECA server from: " .. download_url)
+  Utils.info("Downloading latest ECA server version from: " .. download_url)
   
   -- Ensure cache directory exists
   vim.fn.mkdir(self._cache_dir, "p")

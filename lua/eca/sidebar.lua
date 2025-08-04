@@ -23,6 +23,7 @@ end
 ---@field private _current_tool_call table Current tool call being accumulated
 ---@field private _is_tool_call_streaming boolean Whether we're currently receiving a streaming tool call
 ---@field private _force_welcome boolean Whether to force show welcome content on next open
+---@field private _contexts table Active contexts for this chat session
 local M = {}
 M.__index = M
 
@@ -41,6 +42,7 @@ function M:new(id)
   instance._current_tool_call = nil
   instance._is_tool_call_streaming = false
   instance._force_welcome = false
+  instance._contexts = {}
   return instance
 end
 
@@ -187,6 +189,7 @@ function M:reset()
   self._current_tool_call = nil
   self._is_tool_call_streaming = false
   self._force_welcome = false
+  self._contexts = {}
 end
 
 function M:new_chat()
@@ -196,6 +199,122 @@ function M:new_chat()
   -- Force welcome content on next open
   self._force_welcome = true
   Utils.debug("New chat initiated - will show welcome content on next open")
+end
+
+---@param context table Context object with type, path, content
+function M:add_context(context)
+  -- Check if context already exists (by path)
+  for i, existing in ipairs(self._contexts) do
+    if existing.path == context.path then
+      -- Update existing context
+      self._contexts[i] = context
+      self:_update_contexts_display()
+      Utils.info("Updated context: " .. context.path)
+      return
+    end
+  end
+  
+  -- Add new context
+  table.insert(self._contexts, context)
+  self:_update_contexts_display()
+  Utils.info("Added context: " .. context.path .. " (" .. #self._contexts .. " total)")
+end
+
+---@param path string Path to remove from contexts
+function M:remove_context(path)
+  for i, context in ipairs(self._contexts) do
+    if context.path == path then
+      table.remove(self._contexts, i)
+      self:_update_contexts_display()
+      Utils.info("Removed context: " .. path)
+      return true
+    end
+  end
+  Utils.warn("Context not found: " .. path)
+  return false
+end
+
+---@return table List of active contexts
+function M:get_contexts()
+  return vim.deepcopy(self._contexts)
+end
+
+---@return integer Number of active contexts
+function M:get_context_count()
+  return #self._contexts
+end
+
+function M:clear_contexts()
+  local count = #self._contexts
+  self._contexts = {}
+  self:_update_contexts_display()
+  Utils.info("Cleared " .. count .. " contexts")
+end
+
+---@private
+function M:_update_contexts_display()
+  local contexts = self.containers.contexts
+  if not contexts or not vim.api.nvim_buf_is_valid(contexts.bufnr) then 
+    return 
+  end
+  
+  local lines = {}
+  
+  if #self._contexts == 0 then
+    lines = { "📂 No contexts" }
+  else
+    -- Create bubbles/badges for each context
+    local bubbles = {}
+    
+    for i, context in ipairs(self._contexts) do
+      local icon = context.type == "file" and "📄" or 
+                   context.type == "selection" and "📝" or 
+                   context.type == "repoMap" and "🗺️" or "📁"
+      local name = context.type == "repoMap" and "repoMap" or 
+                   vim.fn.fnamemodify(context.path, ":t") -- Get filename only
+      
+      
+      -- Create bubble with modern pill/badge style
+      -- Different bubble styles to choose from:
+      -- local bubble = "⟮ " .. icon .. name .. " ⟯"        -- Curved brackets (current)
+      local bubble = "⌜".. name .."⌟"       -- Rounded corners alt
+      table.insert(bubbles, bubble)
+    end
+    
+    -- Start with header and arrange bubbles on same line when possible
+    local max_width = 70 -- Approximate container width
+    local header = "📂 (" .. #self._contexts .. "):"
+    local current_line = header
+    local bubble_lines = {}
+
+    
+    -- Add all bubbles to the same line
+    for i, bubble in ipairs(bubbles) do
+      local bubble_width = vim.fn.strdisplaywidth(bubble)
+      local current_width = vim.fn.strdisplaywidth(current_line)
+      
+      -- Add spacing between elements
+      local spacing = 1
+      
+      current_line = current_line .. " " .. bubble
+    end
+    
+    -- Add the last line if not empty
+    if current_line ~= "" then
+      table.insert(bubble_lines, current_line)
+    end
+    
+    -- Add bubble lines to display
+    for _, line in ipairs(bubble_lines) do
+      table.insert(lines, line)
+    end
+    
+  end
+  
+  -- Update the buffer
+  vim.api.nvim_set_option_value("modifiable", true, { buf = contexts.bufnr })
+  vim.api.nvim_buf_set_lines(contexts.bufnr, 0, -1, false, lines)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = contexts.bufnr })
 end
 
 ---@param name string
@@ -228,10 +347,11 @@ function M:_create_containers()
   Utils.debug(string.format("Creating containers with width: %d (%.1f%% of %d columns)", 
     width, Config.options.windows.width, vim.o.columns))
   
-  -- Calculate heights: chat takes most space, usage is 1 line, input is configurable
+  -- Calculate heights: chat takes most space, contexts shows files, usage is 1 line, input is configurable
   local input_height = Config.windows.input and Config.windows.input.height or 4
   local usage_height = 1
-  local chat_height = math.max(10, total_height - input_height - usage_height - 2) -- Minimum height for chat
+  local contexts_height = 3 -- Height for showing context files
+  local chat_height = math.max(10, total_height - input_height - usage_height - contexts_height - 3) -- Minimum height for chat
   
   local constants = Utils.constants()
   
@@ -275,7 +395,25 @@ function M:_create_containers()
     bufnr = usage_bufnr
   }
   
-  -- Create input container (horizontal split below usage)
+  -- Create contexts container (horizontal split below usage)
+  vim.cmd("below " .. contexts_height .. "split")
+  local contexts_winid = vim.api.nvim_get_current_win()
+  local contexts_bufnr
+  if self.containers.contexts and vim.api.nvim_buf_is_valid(self.containers.contexts.bufnr) then
+    contexts_bufnr = self.containers.contexts.bufnr
+    Utils.debug("Reusing existing contexts buffer: " .. contexts_bufnr)
+  else
+    contexts_bufnr = self:_get_or_create_buffer(constants.SIDEBAR_BUFFER_NAME .. "_contexts")
+    Utils.debug("Created new contexts buffer: " .. contexts_bufnr)
+  end
+  vim.api.nvim_win_set_buf(contexts_winid, contexts_bufnr)
+  
+  self.containers.contexts = {
+    winid = contexts_winid,
+    bufnr = contexts_bufnr
+  }
+  
+  -- Create input container (horizontal split below contexts)
   vim.cmd("below " .. input_height .. "split")
   local input_winid = vim.api.nvim_get_current_win()
   local input_bufnr
@@ -295,7 +433,7 @@ function M:_create_containers()
   
   -- Ensure chat container takes up the remaining space
   vim.api.nvim_set_current_win(main_winid)
-  local remaining_height = total_height - usage_height - input_height
+  local remaining_height = total_height - usage_height - contexts_height - input_height
   vim.api.nvim_win_set_height(main_winid, math.max(5, remaining_height))
   
   -- Configure window options for all containers
@@ -320,6 +458,12 @@ function M:_configure_container_windows()
         vim.api.nvim_set_option_value("winhighlight", "Normal:StatusLine", { win = container.winid })
       end
       
+      -- Special settings for contexts container
+      if name == "contexts" then
+        vim.api.nvim_set_option_value("statusline", " ", { win = container.winid })
+        vim.api.nvim_set_option_value("winhighlight", "Normal:Comment", { win = container.winid })
+      end
+      
       -- Special settings for input container
       if name == "input" then
         vim.api.nvim_set_option_value("statusline", " ", { win = container.winid })
@@ -334,11 +478,15 @@ function M:_adjust_container_heights()
   local total_height = vim.o.lines - vim.o.cmdheight - 1
   local input_height = Config.windows.input and Config.windows.input.height or 4
   local usage_height = 1
-  local chat_height = math.max(5, total_height - input_height - usage_height)
+  local contexts_height = 3
+  local chat_height = math.max(5, total_height - input_height - usage_height - contexts_height)
   
-  -- Adjust heights in order: input, usage, then chat takes remaining space
+  -- Adjust heights in order: input, contexts, usage, then chat takes remaining space
   if self.containers.input and vim.api.nvim_win_is_valid(self.containers.input.winid) then
     vim.api.nvim_win_set_height(self.containers.input.winid, input_height)
+  end
+  if self.containers.contexts and vim.api.nvim_win_is_valid(self.containers.contexts.winid) then
+    vim.api.nvim_win_set_height(self.containers.contexts.winid, contexts_height)
   end
   if self.containers.usage and vim.api.nvim_win_is_valid(self.containers.usage.winid) then
     vim.api.nvim_win_set_height(self.containers.usage.winid, usage_height)
@@ -356,6 +504,9 @@ function M:_setup_containers()
   
   -- Setup usage container
   self:_setup_usage_container()
+  
+  -- Setup contexts container
+  self:_setup_contexts_container()
   
   -- Setup input container
   self:_setup_input_container()
@@ -409,6 +560,23 @@ function M:_setup_usage_container()
   
   -- Now make it non-modifiable
   vim.api.nvim_set_option_value("modifiable", false, { buf = usage.bufnr })
+end
+
+function M:_setup_contexts_container()
+  local contexts = self.containers.contexts
+  if not contexts then return end
+  
+  -- Set buffer options for contexts
+  vim.api.nvim_set_option_value("buftype", "nofile", { buf = contexts.bufnr })
+  vim.api.nvim_set_option_value("bufhidden", "hide", { buf = contexts.bufnr })
+  vim.api.nvim_set_option_value("swapfile", false, { buf = contexts.bufnr })
+  vim.api.nvim_set_option_value("modifiable", true, { buf = contexts.bufnr })
+  
+  -- Set initial contexts display
+  self:_update_contexts_display()
+  
+  -- Now make it non-modifiable
+  vim.api.nvim_set_option_value("modifiable", false, { buf = contexts.bufnr })
 end
 
 function M:_setup_input_container()
@@ -534,21 +702,9 @@ function M:_set_welcome_content()
     "- **Chat**: Type your message in the input field at the bottom and press `Ctrl+S` to send",
     "- **Multiline**: Use `Enter` for new lines, `Ctrl+S` to send",
     "- **Context**: Use `@` to mention files or directories",
-    "- **Commands**: Use `:EcaAddFile` to add file context",
+    "- **Context**: Use `:EcaAddFile` to add files, `:EcaListContexts` to view, `:EcaClearContexts` to clear",
     "- **Selection**: Use `:EcaAddSelection` to add code selection",
-    "",
-    "## 💡 Examples",
-    "",
-    "```markdown",
-    "Explain this function",
-    "Help me optimize this code",
-    "What does this error mean?",
-    "```",
-    "",
-    "## ⌨️ Shortcuts",
-    "",
-    "- **`Ctrl+S`**: Send message",
-    "- **`Enter`**: New line in message",
+    "- **RepoMap**: Use `:EcaAddRepoMap` to add repository structure context",
     "",
     "---",
     "",
@@ -558,6 +714,28 @@ function M:_set_welcome_content()
   
   Utils.debug("Setting welcome content for new chat")
   vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
+  
+  -- Auto-add repoMap context if enabled and not already present
+  local Config = require("eca.config")
+  if Config.options.context.auto_repo_map then
+    -- Check if repoMap already exists
+    local has_repo_map = false
+    for _, context in ipairs(self._contexts) do
+      if context.type == "repoMap" then
+        has_repo_map = true
+        break
+      end
+    end
+    
+    if not has_repo_map then
+      self:add_context({
+        type = "repoMap",
+        path = "repoMap",
+        content = "Repository structure and code mapping for better project understanding"
+      })
+      Utils.debug("Auto-added repoMap context on welcome")
+    end
+  end
 end
 
 function M:_setup_autocmds()
@@ -646,7 +824,10 @@ function M:_send_message(message)
   -- Send message to ECA server
   local eca = require("eca")
   if eca.server and eca.server:is_running() then
-    eca.server:send_chat_message(message, {}, function(err, result)
+    -- Include active contexts in the message
+    local contexts = self:get_contexts()
+    Utils.debug("Sending message with " .. #contexts .. " contexts")
+    eca.server:send_chat_message(message, contexts, function(err, result)
       if err then
         Utils.error("Failed to send message to ECA server: " .. tostring(err))
         self:_add_message("assistant", "❌ **Error**: Failed to send message to ECA server")

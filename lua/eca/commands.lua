@@ -47,6 +47,36 @@ function M.setup()
     desc = "Add current selection as context to ECA",
   })
 
+  vim.api.nvim_create_user_command("EcaListContexts", function()
+    require("eca.api").list_contexts()
+  end, {
+    desc = "List active contexts in ECA",
+  })
+
+  vim.api.nvim_create_user_command("EcaClearContexts", function()
+    require("eca.api").clear_contexts()
+  end, {
+    desc = "Clear all contexts from ECA",
+  })
+
+  vim.api.nvim_create_user_command("EcaRemoveContext", function(opts)
+    if opts.args and opts.args ~= "" then
+      require("eca.api").remove_context(opts.args)
+    else
+      Utils.warn("Please provide a file path to remove")
+    end
+  end, {
+    desc = "Remove specific context from ECA",
+    nargs = "+",
+    complete = "file",
+  })
+
+  vim.api.nvim_create_user_command("EcaAddRepoMap", function()
+    require("eca.api").add_repo_map_context()
+  end, {
+    desc = "Add repository map context to ECA",
+  })
+
   vim.api.nvim_create_user_command("EcaServerStart", function()
     require("eca.api").start_server()
   end, {

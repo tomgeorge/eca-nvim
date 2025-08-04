@@ -21,6 +21,9 @@ M._defaults = {
     enable = true, -- Enable markview.nvim integration
     filetypes = { "markdown", "Eca" }, -- Filetypes to enable markview
   },
+  context = {
+    auto_repo_map = true, -- Automatically add repoMap context when starting new chat
+  },
   mappings = {
     chat = "<leader>ec",
     focus = "<leader>ef",
