@@ -223,7 +223,7 @@ function M:_create_containers()
   local total_height = chat_height + selected_code_height + todos_height + status_height + contexts_height + input_height + usage_height
   
   -- Always calculate from total screen minus UI elements (more accurate than current window)
-  local available_height = vim.o.lines - vim.o.cmdheight - UI_ELEMENTS_HEIGHT
+  local available_height = vim.o.lines - UI_ELEMENTS_HEIGHT
   
   if total_height > available_height then
     Utils.debug(string.format("Total height (%d) exceeds available height (%d), adjusting chat height", total_height, available_height))
