@@ -212,6 +212,17 @@ function M:_create_containers()
   local todos_height = self:get_todos_height()
   local chat_height = self:get_chat_height()
   
+  -- Validate total height to prevent "Not enough room" error
+  local total_height = chat_height + selected_code_height + todos_height + status_height + contexts_height + input_height + usage_height
+  local available_height = vim.api.nvim_win_get_height(0)
+  
+  if total_height > available_height then
+    Utils.debug(string.format("Total height (%d) exceeds available height (%d), adjusting chat height", total_height, available_height))
+    local extra_height = total_height - available_height + 2 -- +2 for safety margin
+    chat_height = math.max(10, chat_height - extra_height) -- Minimum 10 lines for chat
+    Utils.debug(string.format("Adjusted chat height from %d to %d", self:get_chat_height(), chat_height))
+  end
+  
   -- Base options for all containers
   local base_buf_options = {
     buftype = "nofile",
@@ -247,16 +258,16 @@ function M:_create_containers()
   self.containers.chat:mount()
   self:_setup_container_events(self.containers.chat, "chat")
   
-  -- Track the last mounted container winid for relative positioning
-  local last_winid = self.containers.chat.winid
-  Utils.debug("Mounted container: chat (winid: " .. last_winid .. ")")
+  -- Track the current container for hierarchical mounting with proper space management
+  local current_winid = self.containers.chat.winid
+  Utils.debug("Mounted container: chat (winid: " .. current_winid .. ")")
   
   -- 2. Create selected_code container (conditional)
   if selected_code_height > 0 then
     self.containers.selected_code = Split({
       relative = {
         type = "win",
-        winid = last_winid,
+        winid = current_winid,
       },
       position = "bottom",
       size = { height = selected_code_height },
@@ -270,8 +281,8 @@ function M:_create_containers()
     })
     self.containers.selected_code:mount()
     self:_setup_container_events(self.containers.selected_code, "selected_code")
-    last_winid = self.containers.selected_code.winid
-    Utils.debug("Mounted container: selected_code (winid: " .. last_winid .. ")")
+    current_winid = self.containers.selected_code.winid
+    Utils.debug("Mounted container: selected_code (winid: " .. current_winid .. ")")
   end
   
   -- 3. Create todos container (conditional)
@@ -279,7 +290,7 @@ function M:_create_containers()
     self.containers.todos = Split({
       relative = {
         type = "win",
-        winid = last_winid,
+        winid = current_winid,
       },
       position = "bottom",
       size = { height = todos_height },
@@ -292,15 +303,15 @@ function M:_create_containers()
     })
     self.containers.todos:mount()
     self:_setup_container_events(self.containers.todos, "todos")
-    last_winid = self.containers.todos.winid
-    Utils.debug("Mounted container: todos (winid: " .. last_winid .. ")")
+    current_winid = self.containers.todos.winid
+    Utils.debug("Mounted container: todos (winid: " .. current_winid .. ")")
   end
   
   -- 4. Create status container (always present) - for processing messages
   self.containers.status = Split({
     relative = {
       type = "win",
-      winid = last_winid,
+      winid = current_winid,
     },
     position = "bottom",
     size = { height = status_height },
@@ -313,14 +324,14 @@ function M:_create_containers()
   })
   self.containers.status:mount()
   self:_setup_container_events(self.containers.status, "status")
-  last_winid = self.containers.status.winid
-  Utils.debug("Mounted container: status (winid: " .. last_winid .. ")")
+  current_winid = self.containers.status.winid
+  Utils.debug("Mounted container: status (winid: " .. current_winid .. ")")
   
   -- 5. Create contexts container between status and input
   self.containers.contexts = Split({
     relative = {
       type = "win",
-      winid = last_winid,
+      winid = current_winid,
     },
     position = "bottom",
     size = { height = contexts_height },
@@ -333,14 +344,14 @@ function M:_create_containers()
   })
   self.containers.contexts:mount()
   self:_setup_container_events(self.containers.contexts, "contexts")
-  last_winid = self.containers.contexts.winid
-  Utils.debug("Mounted container: contexts (winid: " .. last_winid .. ")")
+  current_winid = self.containers.contexts.winid
+  Utils.debug("Mounted container: contexts (winid: " .. current_winid .. ")")
   
   -- 6. Create input container (always present)
   self.containers.input = Split({
     relative = {
       type = "win",
-      winid = last_winid,
+      winid = current_winid,
     },
     position = "bottom",
     size = { height = input_height },
@@ -353,14 +364,14 @@ function M:_create_containers()
   })
   self.containers.input:mount()
   self:_setup_container_events(self.containers.input, "input")
-  last_winid = self.containers.input.winid
-  Utils.debug("Mounted container: input (winid: " .. last_winid .. ")")
+  current_winid = self.containers.input.winid
+  Utils.debug("Mounted container: input (winid: " .. current_winid .. ")")
   
   -- 7. Create usage container (always present) - moved to bottom
   self.containers.usage = Split({
     relative = {
       type = "win",
-      winid = last_winid,
+      winid = current_winid,
     },
     position = "bottom",
     size = { height = usage_height },
