@@ -227,7 +227,7 @@ function M:_create_containers()
   
   if total_height > available_height then
     Utils.debug(string.format("Total height (%d) exceeds available height (%d), adjusting chat height", total_height, available_height))
-    local extra_height = total_height - available_height + SAFETY_MARGIN
+    local extra_height = total_height - (available_height - SAFETY_MARGIN)
     chat_height = math.max(MIN_CHAT_HEIGHT, chat_height - extra_height)
     Utils.debug(string.format("Adjusted chat height from %d to %d", original_chat_height, chat_height))
   end
