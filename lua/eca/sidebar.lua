@@ -25,6 +25,7 @@ end
 ---@field private _contexts table Active contexts for this chat session
 ---@field private _selected_code table Current selected code for display
 ---@field private _todos table List of active todos
+---@field private _current_status string Current processing status message
 ---@field private _augroup integer Autocmd group ID
 ---@field private _response_start_time number Timestamp when streaming started
 ---@field private _max_response_length number Maximum allowed response length
@@ -49,6 +50,7 @@ function M:new(id)
   instance._contexts = {}
   instance._selected_code = nil
   instance._todos = {}
+  instance._current_status = ""
   instance._augroup = vim.api.nvim_create_augroup("eca_sidebar_" .. id, { clear = true })
   instance._response_start_time = 0
   instance._max_response_length = 50000 -- 50KB max response
@@ -175,6 +177,7 @@ function M:reset()
   self._contexts = {}
   self._selected_code = nil
   self._todos = {}
+  self._current_status = ""
 end
 
 function M:new_chat()
@@ -206,6 +209,7 @@ function M:_create_containers()
   -- Calculate dynamic heights using existing methods
   local input_height = Config.windows.input.height
   local usage_height = 1
+  local status_height = 1
   local contexts_height = self:get_contexts_height()
   local selected_code_height = self:get_selected_code_height()
   local todos_height = self:get_todos_height()
@@ -229,14 +233,36 @@ function M:_create_containers()
     winfixwidth = false,
   }
   
-  -- 1. Create and mount main chat container first
-  self.containers.chat = Split({
+  -- 1. Create and mount contexts container first (moved to top)
+  self.containers.contexts = Split({
     relative = "editor",
     position = "right",
     size = {
       width = width,
-      height = chat_height,
+      height = contexts_height,
     },
+    buf_options = vim.tbl_deep_extend("force", base_buf_options, {
+      modifiable = false,
+    }),
+    win_options = vim.tbl_deep_extend("force", base_win_options, {
+      winhighlight = "Normal:Comment",
+    }),
+  })
+  self.containers.contexts:mount()
+  self:_setup_container_events(self.containers.contexts, "contexts")
+  Utils.debug("Mounted container: contexts (winid: " .. self.containers.contexts.winid .. ")")
+  
+  -- Track the last mounted container winid for relative positioning
+  local last_winid = self.containers.contexts.winid
+  
+  -- 2. Create and mount main chat container below contexts
+  self.containers.chat = Split({
+    relative = {
+      type = "win",
+      winid = last_winid,
+    },
+    position = "bottom",
+    size = { height = chat_height },
     buf_options = vim.tbl_deep_extend("force", base_buf_options, {
       modifiable = true,
       filetype = "markdown",
@@ -245,12 +271,10 @@ function M:_create_containers()
   })
   self.containers.chat:mount()
   self:_setup_container_events(self.containers.chat, "chat")
-  Utils.debug("Mounted container: chat (winid: " .. self.containers.chat.winid .. ")")
+  last_winid = self.containers.chat.winid
+  Utils.debug("Mounted container: chat (winid: " .. last_winid .. ")")
   
-  -- Track the last mounted container winid for relative positioning
-  local last_winid = self.containers.chat.winid
-  
-  -- 2. Create selected_code container (conditional)
+  -- 3. Create selected_code container (conditional)
   if selected_code_height > 0 then
     self.containers.selected_code = Split({
       relative = {
@@ -273,7 +297,7 @@ function M:_create_containers()
     Utils.debug("Mounted container: selected_code (winid: " .. last_winid .. ")")
   end
   
-  -- 3. Create todos container (conditional)
+  -- 4. Create todos container (conditional)
   if todos_height > 0 then
     self.containers.todos = Split({
       relative = {
@@ -295,46 +319,25 @@ function M:_create_containers()
     Utils.debug("Mounted container: todos (winid: " .. last_winid .. ")")
   end
   
-  -- 4. Create contexts container (always present)
-  self.containers.contexts = Split({
+  -- 5. Create status container (always present) - for processing messages
+  self.containers.status = Split({
     relative = {
       type = "win",
       winid = last_winid,
     },
     position = "bottom",
-    size = { height = contexts_height },
+    size = { height = status_height },
     buf_options = vim.tbl_deep_extend("force", base_buf_options, {
       modifiable = false,
     }),
     win_options = vim.tbl_deep_extend("force", base_win_options, {
-      winhighlight = "Normal:Comment",
+      winhighlight = "Normal:WarningMsg",
     }),
   })
-  self.containers.contexts:mount()
-  self:_setup_container_events(self.containers.contexts, "contexts")
-  last_winid = self.containers.contexts.winid
-  Utils.debug("Mounted container: contexts (winid: " .. last_winid .. ")")
-  
-  -- 5. Create usage container (always present)
-  self.containers.usage = Split({
-    relative = {
-      type = "win",
-      winid = last_winid,
-    },
-    position = "bottom",
-    size = { height = usage_height },
-    buf_options = vim.tbl_deep_extend("force", base_buf_options, {
-      modifiable = false,
-    }),
-    win_options = vim.tbl_deep_extend("force", base_win_options, {
-      winhighlight = "Normal:StatusLine",
-      statusline = " ",
-    }),
-  })
-  self.containers.usage:mount()
-  self:_setup_container_events(self.containers.usage, "usage")
-  last_winid = self.containers.usage.winid
-  Utils.debug("Mounted container: usage (winid: " .. last_winid .. ")")
+  self.containers.status:mount()
+  self:_setup_container_events(self.containers.status, "status")
+  last_winid = self.containers.status.winid
+  Utils.debug("Mounted container: status (winid: " .. last_winid .. ")")
   
   -- 6. Create input container (always present)
   self.containers.input = Split({
@@ -353,15 +356,37 @@ function M:_create_containers()
   })
   self.containers.input:mount()
   self:_setup_container_events(self.containers.input, "input")
-  Utils.debug("Mounted container: input (winid: " .. self.containers.input.winid .. ")")
+  last_winid = self.containers.input.winid
+  Utils.debug("Mounted container: input (winid: " .. last_winid .. ")")
   
-  Utils.debug(string.format("Created containers: chat=%d, selected_code=%s, todos=%s, contexts=%d, usage=%d, input=%d", 
+  -- 7. Create usage container (always present) - moved to bottom
+  self.containers.usage = Split({
+    relative = {
+      type = "win",
+      winid = last_winid,
+    },
+    position = "bottom",
+    size = { height = usage_height },
+    buf_options = vim.tbl_deep_extend("force", base_buf_options, {
+      modifiable = false,
+    }),
+    win_options = vim.tbl_deep_extend("force", base_win_options, {
+      winhighlight = "Normal:StatusLine",
+      statusline = " ",
+    }),
+  })
+  self.containers.usage:mount()
+  self:_setup_container_events(self.containers.usage, "usage")
+  Utils.debug("Mounted container: usage (winid: " .. self.containers.usage.winid .. ")")
+  
+  Utils.debug(string.format("Created containers: contexts=%d, chat=%d, selected_code=%s, todos=%s, status=%d, input=%d, usage=%d", 
+    contexts_height,
     chat_height, 
     selected_code_height > 0 and tostring(selected_code_height) or "hidden",
     todos_height > 0 and tostring(todos_height) or "hidden",
-    contexts_height, 
-    usage_height, 
-    input_height))
+    status_height,
+    input_height,
+    usage_height))
 end
 
 ---@private
@@ -391,6 +416,8 @@ function M:_setup_container_events(container, name)
     self:_setup_todos_keymaps(container)
   elseif name == "input" then
     self:_setup_input_keymaps(container)
+  elseif name == "status" then
+    -- No special keymaps for status container (read-only)
   end
 end
 
@@ -449,12 +476,13 @@ function M:_update_container_sizes()
   
   -- Recalculate heights
   local new_heights = {
+    contexts = self:get_contexts_height(),
     chat = self:get_chat_height(),
     selected_code = self:get_selected_code_height(),
     todos = self:get_todos_height(),
-    contexts = self:get_contexts_height(),
-    usage = 1,
+    status = 1,
     input = Config.windows.input.height,
+    usage = 1,
   }
   
   -- Update container sizes
@@ -507,12 +535,13 @@ function M:get_chat_height()
   local total_height = vim.o.lines - vim.o.cmdheight - 1
   local input_height = Config.windows.input.height
   local usage_height = 1
+  local status_height = 1
   local contexts_height = self:get_contexts_height()
   local selected_code_height = self:get_selected_code_height()
   local todos_height = self:get_todos_height()
   
   return math.max(10, 
-    total_height - input_height - usage_height - contexts_height 
+    total_height - input_height - usage_height - status_height - contexts_height 
     - selected_code_height - todos_height - 3
   )
 end
@@ -621,6 +650,7 @@ end
 
 function M:_setup_containers()
   -- Setup each container's content and behavior
+  self:_setup_contexts_container()
   self:_setup_chat_container()
   
   if self.containers.selected_code then
@@ -631,15 +661,19 @@ function M:_setup_containers()
     self:_setup_todos_container()
   end
   
-  self:_setup_contexts_container()
-  self:_setup_usage_container()
+  self:_setup_status_container()
   self:_setup_input_container()
+  self:_setup_usage_container()
   
   self._initialized = true
 end
 
 function M:_refresh_container_content()
   -- Refresh content without full setup
+  if self.containers.contexts then
+    self:_update_contexts_display()
+  end
+  
   if self.containers.chat then
     self:_set_welcome_content()
   end
@@ -652,16 +686,16 @@ function M:_refresh_container_content()
     self:_update_todos_display()
   end
   
-  if self.containers.contexts then
-    self:_update_contexts_display()
-  end
-  
-  if self.containers.usage then
-    self:_update_usage_info(self._usage_info)
+  if self.containers.status then
+    self:_update_status_display()
   end
   
   if self.containers.input then
     self:_add_input_line()
+  end
+  
+  if self.containers.usage then
+    self:_update_usage_info(self._usage_info)
   end
 end
 
@@ -720,6 +754,14 @@ function M:_setup_contexts_container()
   
   -- Set initial contexts display
   self:_update_contexts_display()
+end
+
+function M:_setup_status_container()
+  local status = self.containers.status
+  if not status then return end
+  
+  -- Set initial status display
+  self:_update_status_display()
 end
 
 function M:_setup_usage_container()
@@ -993,6 +1035,29 @@ function M:_update_contexts_display()
   vim.api.nvim_set_option_value("modifiable", false, { buf = contexts.bufnr })
 end
 
+function M:_update_status_display()
+  local status = self.containers.status
+  if not status or not vim.api.nvim_buf_is_valid(status.bufnr) then 
+    return 
+  end
+  
+  local status_text = self._current_status or ""
+  if status_text == "" then
+    status_text = "💤 Ready"
+  end
+  
+  -- Update the buffer
+  vim.api.nvim_set_option_value("modifiable", true, { buf = status.bufnr })
+  vim.api.nvim_buf_set_lines(status.bufnr, 0, -1, false, { status_text })
+  vim.api.nvim_set_option_value("modifiable", false, { buf = status.bufnr })
+end
+
+---@param status_text string
+function M:set_status(status_text)
+  self._current_status = status_text or ""
+  self:_update_status_display()
+end
+
 function M:_update_usage_info(usage_text)
   local usage = self.containers.usage
   if not usage or not vim.api.nvim_buf_is_valid(usage.bufnr) then 
@@ -1066,9 +1131,11 @@ function M:_handle_server_content(params)
     self:_handle_streaming_text(content.text)
   elseif content.type == "progress" then
     if content.state == "running" then
-      self:_add_message("assistant", "⏳ " .. (content.text or "Processing..."))
+      -- Show progress in status container instead of chat
+      self:set_status("⏳ " .. (content.text or "Processing..."))
     elseif content.state == "finished" then
-      -- Finalize any streaming response and prepare for next input
+      -- Clear status and finalize any streaming response
+      self:set_status("💤 Ready")
       self:_finalize_streaming_response()
       self:_add_input_line()
     end

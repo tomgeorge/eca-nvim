@@ -49,20 +49,6 @@ M._defaults = {
       border = "rounded",
       start_insert = true, -- Start insert mode when opening the edit window
     },
-    ask = {
-      floating = false, -- Open the 'AvanteAsk' prompt in a floating window
-      start_insert = true, -- Start insert mode when opening the ask window
-      border = "rounded",
-      ---@type "ours" | "theirs"
-      focus_on_apply = "ours", -- Which diff to focus after applying
-    },
-  },
-  highlights = {
-    ---@type AvanteConflictHighlights
-    diff = {
-      current = "DiffText",
-      incoming = "DiffAdd",
-    },
   },
 }
 
