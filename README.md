@@ -21,12 +21,7 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 #### Basic Configuration
 
 ```lua
-{
-  "editor-code-assistant/eca-nvim",
-  config = function()
-    require("eca").setup()
-  end
-}
+{ "editor-code-assistant/eca-nvim", opts = {} }
 ```
 
 ### 📦 [packer.nvim](https://github.com/wbthomason/packer.nvim)
