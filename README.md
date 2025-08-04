@@ -1,5 +1,8 @@
 # 🤖 ECA Neovim Plugin
 
+<img width="800" alt="demo" src="https://github.com/user-attachments/assets/d8417f8d-54cd-45fe-88a4-5e8dc245d73d" />
+
+
 A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca.dev/) directly into the editor, providing an integrated and intuitive AI experience.
 
 ## ✨ Features
