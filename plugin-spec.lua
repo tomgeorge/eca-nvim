@@ -9,9 +9,14 @@ return {
   config = function()
     require("eca").setup({
       -- Default configuration
-      debug = false,
       server_path = "",
       server_args = "",
+      log = {
+        display = "split", -- "split" or "popup"
+        level = vim.log.levels.INFO,
+        file = "", -- Empty string uses default path
+        max_file_size_mb = 10,
+      },
       behaviour = {
         auto_set_keymaps = true,
         auto_focus_sidebar = true,

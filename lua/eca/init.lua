@@ -2,6 +2,7 @@
 local api = vim.api
 
 local Utils = require("eca.utils")
+local Logger = require("eca.logger")
 local Sidebar = require("eca.sidebar")
 local Config = require("eca.config")
 local Server = require("eca.server")
@@ -24,29 +25,31 @@ M.did_setup = false
 local H = {}
 
 function H.keymaps()
-  vim.keymap.set({ "n", "v" }, "<Plug>(EcaChat)", function() require("eca.api").chat() end, { noremap = true })
-  vim.keymap.set("n", "<Plug>(EcaToggle)", function() M.toggle() end, { noremap = true })
-  vim.keymap.set("n", "<Plug>(EcaFocus)", function() require("eca.api").focus() end, { noremap = true })
+  vim.keymap.set({ "n", "v" }, "<Plug>(EcaChat)", function()
+    require("eca.api").chat()
+  end, { noremap = true })
+  vim.keymap.set("n", "<Plug>(EcaToggle)", function()
+    M.toggle()
+  end, { noremap = true })
+  vim.keymap.set("n", "<Plug>(EcaFocus)", function()
+    require("eca.api").focus()
+  end, { noremap = true })
 
   if Config.behaviour.auto_set_keymaps then
-    Utils.safe_keymap_set(
-      { "n", "v" },
-      Config.mappings.chat,
-      function() require("eca.api").chat() end,
-      { desc = "eca: open chat" }
-    )
-    Utils.safe_keymap_set(
-      "n",
-      Config.mappings.focus,
-      function() require("eca.api").focus() end,
-      { desc = "eca: focus" }
-    )
-    Utils.safe_keymap_set("n", Config.mappings.toggle, function() M.toggle() end, { desc = "eca: toggle" })
+    Utils.safe_keymap_set({ "n", "v" }, Config.mappings.chat, function()
+      require("eca.api").chat()
+    end, { desc = "eca: open chat" })
+    Utils.safe_keymap_set("n", Config.mappings.focus, function()
+      require("eca.api").focus()
+    end, { desc = "eca: focus" })
+    Utils.safe_keymap_set("n", Config.mappings.toggle, function()
+      M.toggle()
+    end, { desc = "eca: toggle" })
   end
 end
 
-function H.signs() 
-  vim.fn.sign_define("EcaInputPromptSign", { text = Config.windows.input.prefix }) 
+function H.signs()
+  vim.fn.sign_define("EcaInputPromptSign", { text = Config.windows.input.prefix })
 end
 
 H.augroup = api.nvim_create_augroup("eca_autocmds", { clear = true })
@@ -66,8 +69,12 @@ function H.autocmds()
     group = H.augroup,
     callback = function()
       local sidebar = M.get()
-      if not sidebar then return end
-      if not sidebar:is_open() then return end
+      if not sidebar then
+        return
+      end
+      if not sidebar:is_open() then
+        return
+      end
       sidebar:resize()
     end,
   })
@@ -76,7 +83,9 @@ function H.autocmds()
     group = H.augroup,
     callback = function()
       local current_buf = vim.api.nvim_get_current_buf()
-      if Utils.is_sidebar_buffer(current_buf) then return end
+      if Utils.is_sidebar_buffer(current_buf) then
+        return
+      end
 
       local non_sidebar_wins = 0
       local sidebar_wins = {}
@@ -106,8 +115,12 @@ function H.autocmds()
     callback = function(ev)
       local tab = tonumber(ev.file)
       local s = M.sidebars[tab]
-      if s then s:reset() end
-      if tab ~= nil then M.sidebars[tab] = nil end
+      if s then
+        s:reset()
+      end
+      if tab ~= nil then
+        M.sidebars[tab] = nil
+      end
     end,
   })
 
@@ -116,21 +129,25 @@ function H.autocmds()
   end)
 
   local function setup_colors()
-    Utils.debug("Setting up eca colors")
+    Logger.debug("Setting up eca colors")
     require("eca.highlights").setup()
   end
 
   api.nvim_create_autocmd("ColorSchemePre", {
     group = H.augroup,
     callback = function()
-      vim.schedule(function() setup_colors() end)
+      vim.schedule(function()
+        setup_colors()
+      end)
     end,
   })
 
   api.nvim_create_autocmd("ColorScheme", {
     group = H.augroup,
     callback = function()
-      vim.schedule(function() setup_colors() end)
+      vim.schedule(function()
+        setup_colors()
+      end)
     end,
   })
 
@@ -179,7 +196,9 @@ end
 
 function M.is_sidebar_open()
   local sidebar = M.get()
-  if not sidebar then return false end
+  if not sidebar then
+    return false
+  end
   return sidebar:is_open()
 end
 
@@ -187,26 +206,37 @@ end
 function M.open_sidebar(opts)
   opts = opts or {}
   local sidebar = M.get()
-  if not sidebar then M._init(api.nvim_get_current_tabpage()) end
+  if not sidebar then
+    M._init(api.nvim_get_current_tabpage())
+  end
   M.current.sidebar:open(opts)
 end
 
 function M.close_sidebar()
   local sidebar = M.get()
-  if not sidebar then return end
+  if not sidebar then
+    return
+  end
   sidebar:close()
 end
 
 setmetatable(M.toggle, {
   __index = M.toggle,
-  __call = function() M.toggle_sidebar() end,
+  __call = function()
+    M.toggle_sidebar()
+  end,
 })
 
 ---@param opts? eca.Config
 function M.setup(opts)
   Config.setup(opts or {})
 
-  if M.did_setup then return end
+  if M.did_setup then
+    return
+  end
+
+  -- Initialize logger with configuration
+  require("eca.logger").setup(Config.options.log)
 
   require("eca.highlights").setup()
   require("eca.commands").setup()
@@ -223,16 +253,16 @@ function M.setup(opts)
   M.server = Server:new({
     on_started = function(connection)
       M.status_bar:update("Running")
-      Utils.info("ECA server started and ready!")
+      Logger.info("ECA server started and ready!")
     end,
     on_status_changed = function(status)
       M.status_bar:update(status)
       if status == "Failed" then
-        Utils.error("ECA server failed to start. Check :messages for details.")
+        Logger.notify("ECA server failed to start. Check :messages for details.", vim.log.levels.ERROR)
       elseif status == "Starting" then
-        Utils.info("Starting ECA server...")
+        Logger.info("Starting ECA server...")
       end
-    end
+    end,
   })
 
   -- Start server automatically in background

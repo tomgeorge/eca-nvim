@@ -1,4 +1,5 @@
 local Utils = require("eca.utils")
+local Logger = require("eca.logger")
 local Config = require("eca.config")
 
 -- Load nui.nvim components (required dependency)
@@ -85,17 +86,17 @@ function M:open(opts)
   
   -- Setup containers if not initialized or if we need to refresh content
   if not self._initialized then
-    Utils.debug("Setting up containers (first time)")
+    Logger.debug("Setting up containers (first time)")
     self:_setup_containers()
   else
-    Utils.debug("Reusing existing containers")
+    Logger.debug("Reusing existing containers")
     self:_refresh_container_content()
   end
   
   -- Always focus input when opening
   self:_focus_input()
   
-  Utils.debug("ECA sidebar opened")
+  Logger.debug("ECA sidebar opened")
 end
 
 function M:close()
@@ -110,7 +111,7 @@ function M:_close_windows_only()
       container.winid = nil
     end
   end
-  Utils.debug("ECA sidebar windows closed")
+  Logger.debug("ECA sidebar windows closed")
 end
 
 function M:_close_and_cleanup()
@@ -129,7 +130,7 @@ function M:_close_and_cleanup()
     end
   end
   self.containers = {}
-  Utils.debug("ECA sidebar closed and cleaned up")
+  Logger.debug("ECA sidebar closed and cleaned up")
 end
 
 ---@param opts? table
@@ -186,7 +187,7 @@ end
 function M:new_chat()
   self:reset()
   self._force_welcome = true
-  Utils.debug("New chat initiated - will show welcome content on next open")
+  Logger.debug("New chat initiated - will show welcome content on next open")
 end
 
 ---@private
@@ -226,10 +227,10 @@ function M:_create_containers()
   local available_height = vim.o.lines - UI_ELEMENTS_HEIGHT
   
   if total_height > available_height then
-    Utils.debug(string.format("Total height (%d) exceeds available height (%d), adjusting chat height", total_height, available_height))
+    Logger.debug(string.format("Total height (%d) exceeds available height (%d), adjusting chat height", total_height, available_height))
     local extra_height = total_height - (available_height - SAFETY_MARGIN)
     chat_height = math.max(MIN_CHAT_HEIGHT, chat_height - extra_height)
-    Utils.debug(string.format("Adjusted chat height from %d to %d", original_chat_height, chat_height))
+    Logger.debug(string.format("Adjusted chat height from %d to %d", original_chat_height, chat_height))
   end
   
   -- Base options for all containers
@@ -269,7 +270,7 @@ function M:_create_containers()
   
   -- Track the current container for hierarchical mounting with proper space management
   local current_winid = self.containers.chat.winid
-  Utils.debug("Mounted container: chat (winid: " .. current_winid .. ")")
+  Logger.debug("Mounted container: chat (winid: " .. current_winid .. ")")
   
   -- 2. Create selected_code container (conditional)
   if selected_code_height > 0 then
@@ -291,7 +292,7 @@ function M:_create_containers()
     self.containers.selected_code:mount()
     self:_setup_container_events(self.containers.selected_code, "selected_code")
     current_winid = self.containers.selected_code.winid
-    Utils.debug("Mounted container: selected_code (winid: " .. current_winid .. ")")
+    Logger.debug("Mounted container: selected_code (winid: " .. current_winid .. ")")
   end
   
   -- 3. Create todos container (conditional)
@@ -313,7 +314,7 @@ function M:_create_containers()
     self.containers.todos:mount()
     self:_setup_container_events(self.containers.todos, "todos")
     current_winid = self.containers.todos.winid
-    Utils.debug("Mounted container: todos (winid: " .. current_winid .. ")")
+    Logger.debug("Mounted container: todos (winid: " .. current_winid .. ")")
   end
   
   -- 4. Create status container (always present) - for processing messages
@@ -334,7 +335,7 @@ function M:_create_containers()
   self.containers.status:mount()
   self:_setup_container_events(self.containers.status, "status")
   current_winid = self.containers.status.winid
-  Utils.debug("Mounted container: status (winid: " .. current_winid .. ")")
+  Logger.debug("Mounted container: status (winid: " .. current_winid .. ")")
   
   -- 5. Create contexts container between status and input
   self.containers.contexts = Split({
@@ -354,7 +355,7 @@ function M:_create_containers()
   self.containers.contexts:mount()
   self:_setup_container_events(self.containers.contexts, "contexts")
   current_winid = self.containers.contexts.winid
-  Utils.debug("Mounted container: contexts (winid: " .. current_winid .. ")")
+  Logger.debug("Mounted container: contexts (winid: " .. current_winid .. ")")
   
   -- 6. Create input container (always present)
   self.containers.input = Split({
@@ -374,7 +375,7 @@ function M:_create_containers()
   self.containers.input:mount()
   self:_setup_container_events(self.containers.input, "input")
   current_winid = self.containers.input.winid
-  Utils.debug("Mounted container: input (winid: " .. current_winid .. ")")
+  Logger.debug("Mounted container: input (winid: " .. current_winid .. ")")
   
   -- 7. Create usage container (always present) - moved to bottom
   self.containers.usage = Split({
@@ -394,9 +395,9 @@ function M:_create_containers()
   })
   self.containers.usage:mount()
   self:_setup_container_events(self.containers.usage, "usage")
-  Utils.debug("Mounted container: usage (winid: " .. self.containers.usage.winid .. ")")
+  Logger.debug("Mounted container: usage (winid: " .. self.containers.usage.winid .. ")")
   
-  Utils.debug(string.format("Created containers: contexts=%d, chat=%d, selected_code=%s, todos=%s, status=%d, input=%d, usage=%d", 
+  Logger.debug(string.format("Created containers: contexts=%d, chat=%d, selected_code=%s, todos=%s, status=%d, input=%d, usage=%d", 
     contexts_height,
     chat_height, 
     selected_code_height > 0 and tostring(selected_code_height) or "hidden",
@@ -414,17 +415,17 @@ function M:_setup_container_events(container, name)
   
   -- Setup event handling for each container
   container:on(event.event.BufWinEnter, function()
-    Utils.debug("Container " .. name .. " entered")
+    Logger.debug("Container " .. name .. " entered")
     -- Container-specific setup can go here
   end)
   
   container:on(event.event.BufLeave, function()
-    Utils.debug("Container " .. name .. " left")
+    Logger.debug("Container " .. name .. " left")
     -- Container-specific cleanup can go here
   end)
   
   container:on(event.event.WinClosed, function()
-    Utils.debug("Container " .. name .. " window closed")
+    Logger.debug("Container " .. name .. " window closed")
     self:_handle_container_closed(name)
   end)
   
@@ -574,7 +575,7 @@ function M:add_context(context)
       -- Update existing context
       self._contexts[i] = context
       self:_update_contexts_display()
-      Utils.info("Updated context: " .. context.path)
+      Logger.info("Updated context: " .. context.path)
       return
     end
   end
@@ -582,7 +583,7 @@ function M:add_context(context)
   -- Add new context
   table.insert(self._contexts, context)
   self:_update_contexts_display()
-  Utils.info("Added context: " .. context.path .. " (" .. #self._contexts .. " total)")
+  Logger.info("Added context: " .. context.path .. " (" .. #self._contexts .. " total)")
 end
 
 ---@param path string Path to remove from contexts
@@ -591,11 +592,11 @@ function M:remove_context(path)
     if context.path == path then
       table.remove(self._contexts, i)
       self:_update_contexts_display()
-      Utils.info("Removed context: " .. path)
+      Logger.info("Removed context: " .. path)
       return true
     end
   end
-  Utils.warn("Context not found: " .. path)
+  Logger.warn("Context not found: " .. path)
   return false
 end
 
@@ -613,40 +614,40 @@ function M:clear_contexts()
   local count = #self._contexts
   self._contexts = {}
   self:_update_contexts_display()
-  Utils.info("Cleared " .. count .. " contexts")
+  Logger.info("Cleared " .. count .. " contexts")
 end
 
 ---@param code table Selected code object with filepath, content, start_line, end_line
 function M:set_selected_code(code)
   self._selected_code = code
   self:_update_selected_code_display()
-  Utils.info("Selected code updated: " .. (code and code.filepath or "none"))
+  Logger.info("Selected code updated: " .. (code and code.filepath or "none"))
 end
 
 function M:clear_selected_code()
   self._selected_code = nil
   self:_update_selected_code_display()
-  Utils.info("Selected code cleared")
+  Logger.info("Selected code cleared")
 end
 
 ---@param todo table Todo object with content, status ("pending", "completed")
 function M:add_todo(todo)
   table.insert(self._todos, todo)
   self:_update_todos_display()
-  Utils.info("Added TODO: " .. todo.content)
+  Logger.info("Added TODO: " .. todo.content)
 end
 
 ---@param index integer Index of todo to toggle
 function M:toggle_todo(index)
   if index <= 0 or index > #self._todos then
-    Utils.warn("Invalid TODO index: " .. index)
+    Logger.warn("Invalid TODO index: " .. index)
     return false
   end
   
   local todo = self._todos[index]
   todo.status = todo.status == "completed" and "pending" or "completed"
   self:_update_todos_display()
-  Utils.info("Toggled TODO " .. index .. ": " .. todo.content)
+  Logger.info("Toggled TODO " .. index .. ": " .. todo.content)
   return true
 end
 
@@ -654,7 +655,7 @@ function M:clear_todos()
   local count = #self._todos
   self._todos = {}
   self:_update_todos_display()
-  Utils.info("Cleared " .. count .. " TODOs")
+  Logger.info("Cleared " .. count .. " TODOs")
 end
 
 ---@return table List of active todos
@@ -822,12 +823,12 @@ function M:_set_welcome_content()
     
     -- Only set welcome content if buffer is empty or has no meaningful content
     if has_content then
-      Utils.debug("Preserving existing chat content")
+      Logger.debug("Preserving existing chat content")
       return
     end
   else
     -- Force welcome content and reset the flag
-    Utils.debug("Forcing welcome content for new chat")
+    Logger.debug("Forcing welcome content for new chat")
     self._force_welcome = false
   end
   
@@ -848,7 +849,7 @@ function M:_set_welcome_content()
     "---",
   }
   
-  Utils.debug("Setting welcome content for new chat")
+  Logger.debug("Setting welcome content for new chat")
   vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
   
   -- Auto-add repoMap context if enabled and not already present
@@ -868,7 +869,7 @@ function M:_set_welcome_content()
         path = "repoMap",
         content = "Repository structure and code mapping for better project understanding"
       })
-      Utils.debug("Auto-added repoMap context on welcome")
+      Logger.debug("Auto-added repoMap context on welcome")
     end
   end
 end
@@ -889,7 +890,7 @@ end
 function M:_focus_input()
   local input = self.containers.input
   if not input or not vim.api.nvim_win_is_valid(input.winid) then 
-    Utils.debug("Cannot focus input: invalid window")
+    Logger.notify("Cannot focus input: invalid window", vim.log.levels.ERROR)
     return 
   end
   
@@ -924,7 +925,7 @@ function M:_focus_input()
             vim.cmd('startinsert!')
           end
           
-          Utils.debug("Input focused successfully with plenary")
+          Logger.debug("Input focused successfully with plenary")
         end
       end, 50) -- Small delay to ensure UI is ready
     end)
@@ -951,7 +952,7 @@ function M:_focus_input()
           vim.cmd('startinsert!')
         end
         
-        Utils.debug("Input focused successfully (fallback)")
+        Logger.debug("Input focused successfully (fallback)")
       end
     end, 50)
   end
@@ -1159,7 +1160,7 @@ end
 
 ---@param message string
 function M:_send_message(message)
-  Utils.debug("Sending message: " .. message)
+  Logger.debug("Sending message: " .. message)
   
   -- Store the last user message to avoid duplication
   self._last_user_message = message
@@ -1169,10 +1170,10 @@ function M:_send_message(message)
   if eca.server and eca.server:is_running() then
     -- Include active contexts in the message
     local contexts = self:get_contexts()
-    Utils.debug("Sending message with " .. #contexts .. " contexts")
+    Logger.debug("Sending message with " .. #contexts .. " contexts")
     eca.server:send_chat_message(message, contexts, function(err, result)
       if err then
-        Utils.error("Failed to send message to ECA server: " .. tostring(err))
+        Logger.error("Failed to send message to ECA server: " .. tostring(err))
         self:_add_message("assistant", "❌ **Error**: Failed to send message to ECA server")
       end
       -- Response will come through server notification handler
@@ -1248,14 +1249,14 @@ end
 function M:_handle_streaming_text(text)
   -- Only check for empty text
   if not text or text == "" then
-    Utils.debug("DEBUG: Empty text received, ignoring")
+    Logger.debug("DEBUG: Empty text received, ignoring")
     return
   end
   
-  Utils.debug("DEBUG: Received text chunk: '" .. text:sub(1, 50) .. (text:len() > 50 and "..." or "") .. "'")
+  Logger.debug("DEBUG: Received text chunk: '" .. text:sub(1, 50) .. (text:len() > 50 and "..." or "") .. "'")
   
   if not self._is_streaming then
-    Utils.debug("DEBUG: Starting streaming response")
+    Logger.debug("DEBUG: Starting streaming response")
     -- Start streaming - simple and direct
     self._is_streaming = true
     self._current_response_buffer = ""
@@ -1266,7 +1267,7 @@ function M:_handle_streaming_text(text)
   -- Simple accumulation - no complex checks
   self._current_response_buffer = (self._current_response_buffer or "") .. text
   
-  Utils.debug("DEBUG: Buffer now has " .. #self._current_response_buffer .. " chars")
+  Logger.debug("DEBUG: Buffer now has " .. #self._current_response_buffer .. " chars")
   
   -- Update the assistant's message in place
   self:_update_streaming_message(self._current_response_buffer)
@@ -1276,14 +1277,14 @@ end
 function M:_update_streaming_message(content)
   local chat = self.containers.chat
   if not chat or self._last_assistant_line == 0 then 
-    Utils.debug("DEBUG: Cannot update - no chat or no assistant line")
+    Logger.notify("Cannot update - no chat or no assistant line", vim.log.levels.ERROR)
     return 
   end
   
-  Utils.debug("DEBUG: Updating streaming message with " .. #content .. " chars")
+  Logger.debug("DEBUG: Updating streaming message with " .. #content .. " chars")
   
   if not vim.api.nvim_buf_is_valid(chat.bufnr) then
-    Utils.debug("DEBUG: Invalid buffer, cannot update")
+    Logger.notify("Invalid buffer, cannot update", vim.log.levels.ERROR)
     return
   end
   
@@ -1297,8 +1298,8 @@ function M:_update_streaming_message(content)
     local content_lines = Utils.split_lines(content)
     local start_line = self._last_assistant_line + 2  -- Skip "## 🤖 ECA" and empty line
     
-    Utils.debug("DEBUG: Assistant line: " .. self._last_assistant_line .. ", start_line: " .. start_line)
-    Utils.debug("DEBUG: Content lines: " .. #content_lines)
+    Logger.debug("DEBUG: Assistant line: " .. self._last_assistant_line .. ", start_line: " .. start_line)
+    Logger.debug("DEBUG: Content lines: " .. #content_lines)
     
     -- Replace assistant content directly
     local new_lines = {}
@@ -1319,11 +1320,11 @@ function M:_update_streaming_message(content)
     -- Set all lines at once
     vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, new_lines)
     
-    Utils.debug("DEBUG: Buffer updated successfully with " .. #new_lines .. " total lines")
+    Logger.debug("DEBUG: Buffer updated successfully with " .. #new_lines .. " total lines")
   end)
   
   if not success then
-    Utils.debug("DEBUG: Error updating buffer: " .. tostring(err))
+    Logger.notify("Error updating buffer: " .. tostring(err), vim.log.levels.ERROR)
   else
     -- Auto-scroll to bottom during streaming to follow the text
     self:_scroll_to_bottom()
@@ -1398,17 +1399,17 @@ end
 
 function M:_finalize_streaming_response()
   if self._is_streaming then
-    Utils.debug("DEBUG: Finalizing streaming response")
-    Utils.debug("DEBUG: Final buffer had " .. #(self._current_response_buffer or "") .. " chars")
+    Logger.debug("DEBUG: Finalizing streaming response")
+    Logger.debug("DEBUG: Final buffer had " .. #(self._current_response_buffer or "") .. " chars")
     
     self._is_streaming = false
     self._current_response_buffer = ""
     self._last_assistant_line = 0
     self._response_start_time = 0
     
-    Utils.debug("DEBUG: Streaming state cleared")
+    Logger.debug("DEBUG: Streaming state cleared")
   else
-    Utils.debug("DEBUG: _finalize_streaming_response called but not streaming")
+    Logger.debug("DEBUG: _finalize_streaming_response called but not streaming")
   end
 end
 
@@ -1466,7 +1467,7 @@ function M:_safe_buffer_update(bufnr, callback)
   -- Disable treesitter highlighting for this buffer temporarily
   pcall(function()
     if vim.treesitter.highlighter.active[bufnr] then
-      Utils.debug("Temporarily disabling treesitter for buffer " .. bufnr)
+      Logger.debug("Temporarily disabling treesitter for buffer " .. bufnr)
       vim.treesitter.highlighter.active[bufnr]:destroy()
       vim.treesitter.highlighter.active[bufnr] = nil
     end
@@ -1475,7 +1476,7 @@ function M:_safe_buffer_update(bufnr, callback)
   -- Execute the buffer update with maximum protection
   local success, err = pcall(callback)
   if not success then
-    Utils.debug("Buffer update failed: " .. tostring(err))
+    Logger.notify("Buffer update failed: " .. tostring(err), vim.log.levels.ERROR)
   end
   
   -- Restore original state immediately (no delay for critical settings)
@@ -1496,11 +1497,11 @@ function M:_safe_buffer_update(bufnr, callback)
         if ok and parser then
           -- Only create highlighter if one doesn't exist and buffer is still valid
           if not vim.treesitter.highlighter.active[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
-            Utils.debug("Re-enabling treesitter for buffer " .. bufnr)
+            Logger.debug("Re-enabling treesitter for buffer " .. bufnr)
             vim.treesitter.highlighter.new(parser, {})
           end
         else
-          Utils.debug("No treesitter parser available for buffer " .. bufnr)
+          Logger.debug("No treesitter parser available for buffer " .. bufnr)
         end
       end)
     end
