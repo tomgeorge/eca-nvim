@@ -253,14 +253,14 @@ function M.setup(opts)
   M.server = Server:new({
     on_started = function(connection)
       M.status_bar:update("Running")
-      Logger.info("ECA server started and ready!")
+      Logger.debug("ECA server started and ready!")
     end,
     on_status_changed = function(status)
       M.status_bar:update(status)
       if status == "Failed" then
         Logger.notify("ECA server failed to start. Check :messages for details.", vim.log.levels.ERROR)
       elseif status == "Starting" then
-        Logger.info("Starting ECA server...")
+        Logger.debug("Starting ECA server...")
       end
     end,
   })

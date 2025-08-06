@@ -227,7 +227,7 @@ function M:_initialize_server()
     end
 
     self:_change_status(ServerStatus.Running)
-    Logger.info("ECA server started successfully")
+    Logger.debug("ECA server started successfully")
 
     -- Send initialized notification
     self._rpc:send_notification("initialized", {})
