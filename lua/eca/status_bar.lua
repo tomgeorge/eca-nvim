@@ -41,8 +41,8 @@ function M:_refresh()
     status_text = status_text .. " ○"
   end
   
-  -- Show in command line temporarily
-  vim.notify(status_text, vim.log.levels.INFO)
+  -- Only show status in status bar, not as notification
+  -- vim.notify(status_text, vim.log.levels.INFO) -- Commented out to reduce notification noise
   
   -- Also update the global status for other components to use
   vim.g.eca_server_status = self._status
