@@ -1,6 +1,11 @@
 -- Minimal init.lua for testing
 vim.cmd([[let &rtp.=','.getcwd()]])
 
+-- Disable swap files and other unnecessary features for testing
+vim.o.swapfile = false
+vim.o.backup = false
+vim.o.writebackup = false
+
 -- Add dependencies to runtime path if headless
 if #vim.api.nvim_list_uis() == 0 then
   vim.cmd('set rtp+=deps/mini.nvim')

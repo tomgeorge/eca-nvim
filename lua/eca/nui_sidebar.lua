@@ -1,4 +1,5 @@
 local Utils = require("eca.utils")
+local Logger = require("eca.logger")
 local Config = require("eca.config")
 
 -- Check if nui.nvim is available
@@ -6,12 +7,12 @@ local nui_available, Split = pcall(require, "nui.split")
 local nui_event_available, event = pcall(require, "nui.utils.autocmd")
 
 if not nui_available then
-  Utils.warn("nui.nvim not found. Install MunifTanjim/nui.nvim for enhanced UI experience.")
+  Logger.notify("nui.nvim not found. Install MunifTanjim/nui.nvim for enhanced UI experience.", vim.log.levels.WARN)
   return nil
 end
 
 if not nui_event_available then
-  Utils.warn("nui.utils.autocmd not found. Some features may not work properly.")
+  Logger.notify("nui.utils.autocmd not found. Some features may not work properly.", vim.log.levels.WARN)
   event = nil
 end
 
@@ -80,10 +81,10 @@ function M:open(opts)
   
   -- Setup containers if not initialized or if we need to refresh content
   if not self._initialized then
-    Utils.debug("Setting up nui containers (first time)")
+    Logger.debug("Setting up nui containers (first time)")
     self:_setup_containers()
   else
-    Utils.debug("Reusing existing nui containers")
+    Logger.debug("Reusing existing nui containers")
     self:_refresh_container_content()
   end
   
@@ -91,7 +92,7 @@ function M:open(opts)
     vim.api.nvim_set_current_win(self.containers.input.winid)
   end
   
-  Utils.debug("ECA nui sidebar opened")
+  Logger.debug("ECA nui sidebar opened")
 end
 
 function M:close()
@@ -106,7 +107,7 @@ function M:_close_windows_only()
       container.winid = nil
     end
   end
-  Utils.debug("ECA nui sidebar windows closed")
+  Logger.debug("ECA nui sidebar windows closed")
 end
 
 function M:_close_and_cleanup()
@@ -125,7 +126,7 @@ function M:_close_and_cleanup()
     end
   end
   self.containers = {}
-  Utils.debug("ECA nui sidebar closed and cleaned up")
+  Logger.debug("ECA nui sidebar closed and cleaned up")
 end
 
 ---@param opts? table
@@ -181,7 +182,7 @@ end
 function M:new_chat()
   self:reset()
   self._force_welcome = true
-  Utils.debug("New chat initiated - will show welcome content on next open")
+  Logger.debug("New chat initiated - will show welcome content on next open")
 end
 
 ---@private
@@ -246,7 +247,7 @@ function M:_create_nui_containers()
   })
   self.containers.chat:mount()
   self:_setup_container_events(self.containers.chat, "chat")
-  Utils.debug("Mounted nui container: chat (winid: " .. self.containers.chat.winid .. ")")
+  Logger.debug("Mounted nui container: chat (winid: " .. self.containers.chat.winid .. ")")
   
   -- Track the last mounted container winid for relative positioning
   local last_winid = self.containers.chat.winid
@@ -271,7 +272,7 @@ function M:_create_nui_containers()
     self.containers.selected_code:mount()
     self:_setup_container_events(self.containers.selected_code, "selected_code")
     last_winid = self.containers.selected_code.winid
-    Utils.debug("Mounted nui container: selected_code (winid: " .. last_winid .. ")")
+    Logger.debug("Mounted nui container: selected_code (winid: " .. last_winid .. ")")
   end
   
   -- 3. Create todos container (conditional)
@@ -293,7 +294,7 @@ function M:_create_nui_containers()
     self.containers.todos:mount()
     self:_setup_container_events(self.containers.todos, "todos")
     last_winid = self.containers.todos.winid
-    Utils.debug("Mounted nui container: todos (winid: " .. last_winid .. ")")
+    Logger.debug("Mounted nui container: todos (winid: " .. last_winid .. ")")
   end
   
   -- 4. Create contexts container (always present)
@@ -314,7 +315,7 @@ function M:_create_nui_containers()
   self.containers.contexts:mount()
   self:_setup_container_events(self.containers.contexts, "contexts")
   last_winid = self.containers.contexts.winid
-  Utils.debug("Mounted nui container: contexts (winid: " .. last_winid .. ")")
+  Logger.debug("Mounted nui container: contexts (winid: " .. last_winid .. ")")
   
   -- 5. Create usage container (always present)
   self.containers.usage = Split({
@@ -335,7 +336,7 @@ function M:_create_nui_containers()
   self.containers.usage:mount()
   self:_setup_container_events(self.containers.usage, "usage")
   last_winid = self.containers.usage.winid
-  Utils.debug("Mounted nui container: usage (winid: " .. last_winid .. ")")
+  Logger.debug("Mounted nui container: usage (winid: " .. last_winid .. ")")
   
   -- 6. Create input container (always present)
   self.containers.input = Split({
@@ -354,9 +355,9 @@ function M:_create_nui_containers()
   })
   self.containers.input:mount()
   self:_setup_container_events(self.containers.input, "input")
-  Utils.debug("Mounted nui container: input (winid: " .. self.containers.input.winid .. ")")
+  Logger.debug("Mounted nui container: input (winid: " .. self.containers.input.winid .. ")")
   
-  Utils.debug(string.format("Created nui containers: chat=%d, selected_code=%s, todos=%s, contexts=%d, usage=%d, input=%d", 
+  Logger.debug(string.format("Created nui containers: chat=%d, selected_code=%s, todos=%s, contexts=%d, usage=%d, input=%d", 
     chat_height, 
     selected_code_height > 0 and tostring(selected_code_height) or "hidden",
     todos_height > 0 and tostring(todos_height) or "hidden",
@@ -373,17 +374,17 @@ function M:_setup_container_events(container, name)
   
   -- Setup event handling for each container
   container:on(event.event.BufWinEnter, function()
-    Utils.debug("Container " .. name .. " entered")
+    Logger.debug("Container " .. name .. " entered")
     -- Container-specific setup can go here
   end)
   
   container:on(event.event.BufLeave, function()
-    Utils.debug("Container " .. name .. " left")
+    Logger.debug("Container " .. name .. " left")
     -- Container-specific cleanup can go here
   end)
   
   container:on(event.event.WinClosed, function()
-    Utils.debug("Container " .. name .. " window closed")
+    Logger.debug("Container " .. name .. " window closed")
     self:_handle_container_closed(name)
   end)
   
@@ -529,7 +530,7 @@ function M:add_context(context)
       -- Update existing context
       self._contexts[i] = context
       self:_update_contexts_display()
-      Utils.info("Updated context: " .. context.path)
+      Logger.info("Updated context: " .. context.path)
       return
     end
   end
@@ -537,7 +538,7 @@ function M:add_context(context)
   -- Add new context
   table.insert(self._contexts, context)
   self:_update_contexts_display()
-  Utils.info("Added context: " .. context.path .. " (" .. #self._contexts .. " total)")
+  Logger.info("Added context: " .. context.path .. " (" .. #self._contexts .. " total)")
 end
 
 ---@param path string Path to remove from contexts
@@ -546,11 +547,11 @@ function M:remove_context(path)
     if context.path == path then
       table.remove(self._contexts, i)
       self:_update_contexts_display()
-      Utils.info("Removed context: " .. path)
+      Logger.info("Removed context: " .. path)
       return true
     end
   end
-  Utils.warn("Context not found: " .. path)
+  Logger.warn("Context not found: " .. path)
   return false
 end
 
@@ -568,40 +569,40 @@ function M:clear_contexts()
   local count = #self._contexts
   self._contexts = {}
   self:_update_contexts_display()
-  Utils.info("Cleared " .. count .. " contexts")
+  Logger.info("Cleared " .. count .. " contexts")
 end
 
 ---@param code table Selected code object with filepath, content, start_line, end_line
 function M:set_selected_code(code)
   self._selected_code = code
   self:_update_selected_code_display()
-  Utils.info("Selected code updated: " .. (code and code.filepath or "none"))
+  Logger.info("Selected code updated: " .. (code and code.filepath or "none"))
 end
 
 function M:clear_selected_code()
   self._selected_code = nil
   self:_update_selected_code_display()
-  Utils.info("Selected code cleared")
+  Logger.info("Selected code cleared")
 end
 
 ---@param todo table Todo object with content, status ("pending", "completed")
 function M:add_todo(todo)
   table.insert(self._todos, todo)
   self:_update_todos_display()
-  Utils.info("Added TODO: " .. todo.content)
+  Logger.info("Added TODO: " .. todo.content)
 end
 
 ---@param index integer Index of todo to toggle
 function M:toggle_todo(index)
   if index <= 0 or index > #self._todos then
-    Utils.warn("Invalid TODO index: " .. index)
+    Logger.warn("Invalid TODO index: " .. index)
     return false
   end
   
   local todo = self._todos[index]
   todo.status = todo.status == "completed" and "pending" or "completed"
   self:_update_todos_display()
-  Utils.info("Toggled TODO " .. index .. ": " .. todo.content)
+  Logger.info("Toggled TODO " .. index .. ": " .. todo.content)
   return true
 end
 
@@ -609,7 +610,7 @@ function M:clear_todos()
   local count = #self._todos
   self._todos = {}
   self:_update_todos_display()
-  Utils.info("Cleared " .. count .. " TODOs")
+  Logger.info("Cleared " .. count .. " TODOs")
 end
 
 ---@return table List of active todos
@@ -764,12 +765,12 @@ function M:_set_welcome_content()
     
     -- Only set welcome content if buffer is empty or has no meaningful content
     if has_content then
-      Utils.debug("Preserving existing chat content")
+      Logger.debug("Preserving existing chat content")
       return
     end
   else
     -- Force welcome content and reset the flag
-    Utils.debug("Forcing welcome content for new chat")
+    Logger.debug("Forcing welcome content for new chat")
     self._force_welcome = false
   end
   
@@ -793,7 +794,7 @@ function M:_set_welcome_content()
     "",
   }
   
-  Utils.debug("Setting welcome content for new chat")
+  Logger.debug("Setting welcome content for new chat")
   vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
   
   -- Auto-add repoMap context if enabled and not already present
@@ -813,7 +814,7 @@ function M:_set_welcome_content()
         path = "repoMap",
         content = "Repository structure and code mapping for better project understanding"
       })
-      Utils.debug("Auto-added repoMap context on welcome")
+      Logger.debug("Auto-added repoMap context on welcome")
     end
   end
 end
@@ -1030,7 +1031,7 @@ end
 
 ---@param message string
 function M:_send_message(message)
-  Utils.debug("Sending message: " .. message)
+  Logger.debug("Sending message: " .. message)
   
   -- Store the last user message to avoid duplication
   self._last_user_message = message
@@ -1043,10 +1044,10 @@ function M:_send_message(message)
   if eca.server and eca.server:is_running() then
     -- Include active contexts in the message
     local contexts = self:get_contexts()
-    Utils.debug("Sending message with " .. #contexts .. " contexts")
+    Logger.debug("Sending message with " .. #contexts .. " contexts")
     eca.server:send_chat_message(message, contexts, function(err, result)
       if err then
-        Utils.error("Failed to send message to ECA server: " .. tostring(err))
+        Logger.error("Failed to send message to ECA server: " .. tostring(err))
         self:_add_message("assistant", "❌ **Error**: Failed to send message to ECA server")
       end
       -- Response will come through server notification handler
@@ -1127,7 +1128,7 @@ function M:_handle_streaming_text(text)
       
       -- If the accumulated text so far exactly matches the user message, skip it
       if trimmed_text == trimmed_user_msg then
-        Utils.debug("Skipping echo of user message: " .. trimmed_text)
+        Logger.debug("Skipping echo of user message: " .. trimmed_text)
         return
       end
     end

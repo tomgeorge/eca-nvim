@@ -1,54 +1,13 @@
 local uv = vim.uv or vim.loop
 
+local Logger = require("eca.logger")
+
 local M = {}
 
 local CONSTANTS = {
   SIDEBAR_FILETYPE = "Eca",
   SIDEBAR_BUFFER_NAME = "__ECA__",
 }
-
----@param msg string
----@param opts? {title?: string, once?: boolean}
-function M.debug(msg, opts)
-  opts = opts or {}
-  local Config = require("eca.config")
-  if Config.debug then
-    vim.notify(msg, vim.log.levels.DEBUG, {
-      title = opts.title or "ECA - Debug",
-      once = opts.once,
-    })
-  end
-end
-
----@param msg string
----@param opts? {title?: string, once?: boolean}
-function M.info(msg, opts)
-  opts = opts or {}
-  vim.notify(msg, vim.log.levels.INFO, {
-    title = opts.title or "ECA",
-    once = opts.once,
-  })
-end
-
----@param msg string
----@param opts? {title?: string, once?: boolean}
-function M.warn(msg, opts)
-  opts = opts or {}
-  vim.notify(msg, vim.log.levels.WARN, {
-    title = opts.title or "ECA",
-    once = opts.once,
-  })
-end
-
----@param msg string
----@param opts? {title?: string, once?: boolean}
-function M.error(msg, opts)
-  opts = opts or {}
-  vim.notify(msg, vim.log.levels.ERROR, {
-    title = opts.title or "ECA",
-    once = opts.once,
-  })
-end
 
 ---@param bufnr integer
 ---@return boolean
@@ -65,7 +24,7 @@ function M.safe_keymap_set(mode, lhs, rhs, opts)
   -- Check if the keymap is already set
   local existing = vim.fn.maparg(lhs, type(mode) == "table" and mode[1] or mode, false, true)
   if existing and existing.rhs then
-    M.debug("Keymap " .. lhs .. " already exists, skipping")
+    Logger.debug("Keymap " .. lhs .. " already exists, skipping")
     return
   end
   vim.keymap.set(mode, lhs, rhs, opts)

@@ -3,13 +3,23 @@ local M = {}
 
 ---@class eca.Config
 M._defaults = {
-  debug = false,
   ---@type string
   server_path = "", -- Path to the ECA binary, will download automatically if empty
   ---@type string
   server_args = "", -- Extra args for the eca start command
   ---@type string
   usage_string_format = "{messageCost} / {sessionCost}",
+  ---@class eca.LogConfig
+  ---@field display 'popup'|'split'
+  ---@field level integer
+  ---@field file string
+  ---@field max_file_size_mb number
+  log = {
+    display = "split",
+    level = vim.log.levels.INFO,
+    file = "",
+    max_file_size_mb = 10, -- Maximum log file size in MB before warning
+  },
   behaviour = {
     auto_set_keymaps = true,
     auto_focus_sidebar = true,
