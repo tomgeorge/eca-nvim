@@ -367,6 +367,7 @@ function M:_create_containers()
     size = { height = input_height },
     buf_options = vim.tbl_deep_extend("force", base_buf_options, {
       modifiable = true,
+      filetype = "eca-input",
     }),
     win_options = vim.tbl_deep_extend("force", base_win_options, {
       statusline = " ",
