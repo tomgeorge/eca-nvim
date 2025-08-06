@@ -228,7 +228,6 @@ T["file_logging"]["writes to file with correct format"] = function()
 
   expect_match(contents, "%[%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d%]")
   expect_match(contents, "INFO")
-  expect_match(contents, "%[CLIENT%]")
   expect_match(contents, "test message")
 end
 
@@ -303,7 +302,6 @@ T["notifications"]["Logger.notify writes to log file"] = function()
 
   expect_match(contents, "WARN")
   expect_match(contents, "test notification message")
-  expect_match(contents, "%[CLIENT%]")
 
   local notifications = child.lua_get("_G.captured_notifications")
   eq(#notifications, 1)
@@ -380,22 +378,20 @@ T["integration"]["logger functions work correctly"] = function()
   expect_match(contents, "error message")
 end
 
-T["integration"]["server logging with SERVER prefix"] = function()
+T["integration"]["server logging with prefix"] = function()
   local contents = log_and_read(
     "server_integration.log",
     [[
-    Logger.info('server message 1', { title = 'SERVER' })
-    Logger.warn('server warning', { title = 'SERVER' })
-    Logger.error('server error', { title = 'SERVER' })
-
+    Logger.log('server stdout message', vim.log.levels.INFO, { server = true })
+    Logger.log('server stderr message', vim.log.levels.WARN, { server = true })
     Logger.info('client message')
   ]]
   )
 
-  expect_match(contents, "%[SERVER%] server message 1")
-  expect_match(contents, "%[SERVER%] server warning")
-  expect_match(contents, "%[SERVER%] server error")
-  expect_match(contents, "%[CLIENT%] client message")
+  expect_match(contents, "%[SERVER%] server stdout message")
+  expect_match(contents, "%[SERVER%] server stderr message") 
+  expect_match(contents, "client message")
+  expect_no_match(contents, "%[SERVER%] client message")
 end
 
 T["integration"]["EcaLogs command behavior"] = function()

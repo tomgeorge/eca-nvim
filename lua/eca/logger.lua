@@ -105,8 +105,8 @@ function M.log(message, level, opts)
 
   local timestamp = os.date("%Y-%m-%d %H:%M:%S")
   local level_name = get_level_name(level)
-  local prefix = opts.title == "SERVER" and "SERVER" or "CLIENT"
-  local formatted = string.format("[%s] %-5s [%s] %s\n", timestamp, level_name, prefix, message)
+  local prefix = opts.server and "[SERVER]" or ""
+  local formatted = string.format("[%s] %-5s %s %s\n", timestamp, level_name, prefix, message)
 
   uv.fs_open(log_path, "a", 420, function(err, fd)
     if err or not fd then
@@ -161,6 +161,7 @@ function M.notify(message, level, opts)
     once = opts.once,
   })
 end
+
 
 --- Get log file statistics
 ---@return table|nil
