@@ -378,22 +378,6 @@ T["integration"]["logger functions work correctly"] = function()
   expect_match(contents, "error message")
 end
 
-T["integration"]["server logging with prefix"] = function()
-  local contents = log_and_read(
-    "server_integration.log",
-    [[
-    Logger.log('server stdout message', vim.log.levels.INFO, { server = true })
-    Logger.log('server stderr message', vim.log.levels.WARN, { server = true })
-    Logger.info('client message')
-  ]]
-  )
-
-  expect_match(contents, "%[SERVER%] server stdout message")
-  expect_match(contents, "%[SERVER%] server stderr message") 
-  expect_match(contents, "client message")
-  expect_no_match(contents, "%[SERVER%] client message")
-end
-
 T["integration"]["EcaLogs command behavior"] = function()
   setup_logger_with_file("eca_logs_test.log")
 

@@ -103,7 +103,7 @@ function M:start()
       if data and self._rpc then
         local output = table.concat(data, "\n")
         if output and output ~= "" and output ~= "\n" then
-          Logger.log(output, vim.log.levels.INFO, { server = true })
+          Logger.log(output, vim.log.levels.INFO)
           self._rpc:_handle_stdout(output)
         end
       end
@@ -121,7 +121,7 @@ function M:start()
 
         if #meaningful_lines > 0 then
           local error_output = table.concat(meaningful_lines, "\n")
-          Logger.log(error_output, vim.log.levels.WARN, { server = true })
+          Logger.log(error_output, vim.log.levels.WARN)
         end
       end
     end,
