@@ -88,10 +88,7 @@ end
 --- Log a message to the log file
 ---@param message string
 ---@param level integer
----@param opts? {title?: string}
-function M.log(message, level, opts)
-  opts = opts or {}
-
+function M.log(message, level)
   if not M.config then
     return
   end
@@ -105,8 +102,7 @@ function M.log(message, level, opts)
 
   local timestamp = os.date("%Y-%m-%d %H:%M:%S")
   local level_name = get_level_name(level)
-  local prefix = opts.title == "SERVER" and "SERVER" or "CLIENT"
-  local formatted = string.format("[%s] %-5s [%s] %s\n", timestamp, level_name, prefix, message)
+  local formatted = string.format("[%s] %-5s %s\n", timestamp, level_name, message)
 
   uv.fs_open(log_path, "a", 420, function(err, fd)
     if err or not fd then
@@ -120,45 +116,40 @@ end
 
 --- Log debug message
 ---@param message string
----@param opts? {title?: string}
-function M.debug(message, opts)
-  M.log(message, vim.log.levels.DEBUG, opts)
+function M.debug(message)
+  M.log(message, vim.log.levels.DEBUG)
 end
 
 --- Log info message
 ---@param message string
----@param opts? {title?: string}
-function M.info(message, opts)
-  M.log(message, vim.log.levels.INFO, opts)
+function M.info(message)
+  M.log(message, vim.log.levels.INFO)
 end
 
 --- Log warn message
 ---@param message string
----@param opts? {title?: string}
-function M.warn(message, opts)
-  M.log(message, vim.log.levels.WARN, opts)
+function M.warn(message)
+  M.log(message, vim.log.levels.WARN)
 end
 
 --- Log error message
 ---@param message string
----@param opts? {title?: string}
-function M.error(message, opts)
-  M.log(message, vim.log.levels.ERROR, opts)
+function M.error(message)
+  M.log(message, vim.log.levels.ERROR)
 end
 
 --- Send notification to user via vim.notify
 ---@param message string
 ---@param level? integer vim.log.levels (default: INFO)
----@param opts? {title?: string, once?: boolean}
+---@param opts? {title?: string}
 function M.notify(message, level, opts)
   level = level or vim.log.levels.INFO
   opts = opts or {}
 
-  M.log(message, level, opts)
+  M.log(message, level)
 
   vim.notify(message, level, {
     title = opts.title or "ECA",
-    once = opts.once,
   })
 end
 

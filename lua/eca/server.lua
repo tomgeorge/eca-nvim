@@ -100,11 +100,10 @@ function M:start()
   -- Use vim.fn.jobstart for interactive processes
   local job_opts = {
     on_stdout = function(_, data, _)
-      Logger.debug("Server stdout received: " .. vim.inspect(data))
       if data and self._rpc then
         local output = table.concat(data, "\n")
         if output and output ~= "" and output ~= "\n" then
-          Logger.debug("Processing stdout: " .. output)
+          Logger.log(output, vim.log.levels.INFO)
           self._rpc:_handle_stdout(output)
         end
       end
@@ -122,8 +121,7 @@ function M:start()
 
         if #meaningful_lines > 0 then
           local error_output = table.concat(meaningful_lines, "\n")
-          Logger.debug("ECA server stderr: " .. error_output)
-          -- Capture logs for the logs buffer
+          Logger.log(error_output, vim.log.levels.WARN)
         end
       end
     end,
