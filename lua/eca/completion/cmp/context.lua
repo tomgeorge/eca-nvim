@@ -1,4 +1,3 @@
-local Logger = require("eca.logger")
 local cmp = require("cmp")
 ---@param context eca.ChatContext
 ---@return lsp.CompletionItem
@@ -44,9 +43,7 @@ local function query_server_contexts(query, callback)
   end
 
   eca.server:send_request("chat/queryContext", { query = query }, function(err, result)
-    Logger.debug("chat/queryContext query " .. vim.inspect({ query = query }))
     if err then
-      Logger.debug("chat/queryContext err: " .. err)
       callback({})
       return
     end

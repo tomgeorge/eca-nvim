@@ -66,7 +66,6 @@ end
 
 ---@diagnostic disable-next-line: unused-local
 source.complete = function(self, _, callback)
-  local logger = require("eca.logger")
   -- Only complete if we're typing a command (starts with /)
   local line = vim.api.nvim_get_current_line()
   local query = get_query(line)
@@ -78,7 +77,6 @@ source.complete = function(self, _, callback)
     if self.cache[bufnr] and self.cache[bufnr][query] then
       callback({ items = self.cache[bufnr][query], isIncomplete = false })
     else
-      logger.debug("not cached")
       query_server_commands(query, function(items)
         callback({
           items = items,
