@@ -1,0 +1,19 @@
+---@meta
+---@class eca.ChatContext
+---@field type string
+---@field path? string
+---@field lines_range? {start: integer, end: integer}
+---@field url? string
+---@field uri? string
+---@field name? string
+---@field description? string
+---@field mime_type? string
+---@field server string
+---
+---
+---@class eca.ChatCommand
+---@field name string
+---@field description string
+---@field help string
+---@field type "mcp-prompt"|"native"
+---@field arguments {name: string, description?: string, required: boolean}[]
