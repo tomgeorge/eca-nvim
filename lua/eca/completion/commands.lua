@@ -17,13 +17,12 @@ function M.get_completion_candidates(query, as_completion_item, callback)
       callback({ items = {} })
     end
 
-    if not result and not result.commands then
-      ---@diagnostic disable-next-line: missing-fields
+    if result and result.commands then
+      local items = vim.iter(result.commands):map(as_completion_item):totable()
+      callback({ items = items })
+    else
       callback({ items = {} })
     end
-
-    local items = vim.iter(result.commands):map(as_completion_item):totable()
-    callback({ items = items })
   end)
 end
 

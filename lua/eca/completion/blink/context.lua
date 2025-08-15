@@ -67,4 +67,10 @@ function source:get_completions(ctx, callback)
   end
 end
 
+---@param item lsp.CompletionItem
+---@param callback fun(any)
+function source:resolve(item, callback)
+  require("eca.completion.context").resolve_completion_item(item, callback)
+end
+
 return source
