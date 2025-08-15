@@ -10,3 +10,20 @@ if has_cmp then
     },
   })
 end
+
+local has_blink, blink = pcall(require, "blink.cmp")
+if has_blink then
+  blink.add_source_provider("eca_commands", {
+    name = "eca_commands",
+    module = "eca.completion.blink.commands",
+    enabled = true,
+  })
+  blink.add_filetype_source("eca-input", "eca_commands")
+
+  blink.add_source_provider("eca_contexts", {
+    name = "eca_contexts",
+    module = "eca.completion.blink.context",
+    enabled = true,
+  })
+  blink.add_filetype_source("eca-input", "eca_contexts")
+end

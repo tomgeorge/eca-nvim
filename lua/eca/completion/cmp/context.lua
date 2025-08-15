@@ -1,6 +1,7 @@
 local cmp = require("cmp")
+---@module 'cmp'
 ---@param context eca.ChatContext
----@return lsp.CompletionItem
+---@return cmp.CompletionItem
 local function as_completion_item(context)
   ---@type lsp.CompletionItem
   ---@diagnostic disable-next-line: missing-fields
@@ -32,27 +33,6 @@ local function as_completion_item(context)
   return item
 end
 
--- Query server for available contexts
--- @param query string
---
-local function query_server_contexts(query, callback)
-  local eca = require("eca")
-  if not eca.server or not eca.server:is_running() then
-    callback({})
-    return
-  end
-
-  eca.server:send_request("chat/queryContext", { query = query }, function(err, result)
-    if err then
-      callback({})
-      return
-    end
-
-    local items = vim.iter(result.contexts):map(as_completion_item):totable()
-    callback({ items = items, isIncomplete = true })
-  end)
-end
-
 local source = {}
 
 function source.new()
@@ -71,28 +51,13 @@ function source:is_available()
   return vim.bo.filetype == "eca-input"
 end
 
----@param cursor_line string
----@param cursor_position lsp.Position|vim.Position
----@return string
-local function get_query(cursor_line, cursor_position)
-  local before_cursor = cursor_line:sub(1, cursor_position.col)
-  ---@type string[]
-  local matches = {}
-  local it = before_cursor:gmatch("@([%w%./_\\%-~]*)")
-  for match in it do
-    table.insert(matches, match)
-  end
-  return matches[#matches]
-end
-
 ---@param params cmp.SourceCompletionApiParams
 ---@diagnostic disable-next-line: unused-local
 function source:complete(params, callback)
-  local query = get_query(params.context.cursor_line, params.context.cursor)
+  local context = require("eca.completion.context")
+  local query = context.get_query(params.context.cursor_line, params.context.cursor)
   if query then
-    query_server_contexts(query, function(items)
-      callback(items)
-    end)
+    context.get_completion_candidates(query, as_completion_item, callback)
   end
 end
 
