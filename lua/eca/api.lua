@@ -147,12 +147,12 @@ function M.add_selection_context()
 
     -- Create context object
     local context = {
-      type = "selection",
+      type = "file",
       path = context_path,
-      content = selection_text,
-      source_file = current_file,
-      start_line = start_line,
-      end_line = end_line,
+      lines_range = {
+        start = start_line,
+        End = end_line
+      }
     }
 
     -- Get current sidebar and add context
