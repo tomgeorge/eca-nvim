@@ -1224,7 +1224,7 @@ function M:_handle_server_content(params)
     return
   elseif content.type == "toolCalled" then
     -- Add diff to current tool call if present in toolCalled content
-    if self._current_tool_call and content.details and content.details.diff then
+    if self._current_tool_call and content.details then
       self._current_tool_call.details = content.details
     end
 
