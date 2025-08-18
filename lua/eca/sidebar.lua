@@ -41,7 +41,7 @@ local SAFETY_MARGIN = 2              -- Extra margin to prevent "Not enough room
 
 ---@param id integer Tab ID
 ---@return eca.Sidebar
-function M:new(id)
+function M.new(id)
   local instance = setmetatable({}, M)
   instance.id = id
   instance.containers = {}
@@ -1223,13 +1223,16 @@ function M:_handle_server_content(params)
     -- IMPORTANT: Return immediately - do NOT display anything for toolCallPrepare
     return
   elseif content.type == "toolCalled" then
-    
-    
+    -- Add diff to current tool call if present in toolCalled content
+    if self._current_tool_call and content.details then
+      self._current_tool_call.details = content.details
+    end
+
     -- Show the final accumulated tool call if we have one
     if self._is_tool_call_streaming and self._current_tool_call then
       self:_display_tool_call()
     end
-    
+
     -- Show the tool result
     local tool_text = string.format("✅ **Tool Result**: %s", content.name or "unknown")
     if content.outputs and #content.outputs > 0 then
@@ -1528,6 +1531,10 @@ function M:_handle_tool_call_prepare(content)
   if content.argumentsText then
     self._current_tool_call.arguments = (self._current_tool_call.arguments or "") .. content.argumentsText
   end
+
+  if content.details then
+    self._current_tool_call.details = content.details
+  end
 end
 
 function M:_display_tool_call()
@@ -1539,6 +1546,11 @@ function M:_display_tool_call()
     tool_text = tool_text .. "\n```json\n" .. self._current_tool_call.arguments .. "\n```"
   end
   
+
+  if self._current_tool_call.details and self._current_tool_call.details.diff then
+    tool_text = tool_text .. "\n\n**Diff**:\n```diff\n" .. self._current_tool_call.details.diff .. "\n```"
+  end
+
   self:_add_message("assistant", tool_text)
 end
 

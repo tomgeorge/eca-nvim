@@ -171,7 +171,7 @@ function M._init(id)
   local sidebar = M.sidebars[id]
 
   if not sidebar then
-    sidebar = Sidebar:new(id)
+    sidebar = Sidebar.new(id)
     M.sidebars[id] = sidebar
   end
   M.current = { sidebar = sidebar }
@@ -235,9 +235,7 @@ function M.setup(opts)
     return
   end
 
-  -- Initialize logger with configuration
   require("eca.logger").setup(Config.options.log)
-
   require("eca.highlights").setup()
   require("eca.commands").setup()
 
