@@ -913,7 +913,8 @@ function M:_focus_input()
             local first_line = lines[1] or ""
             local cursor_col = math.max(#prefix, #first_line)
             
-            -- Set cursor to end of content or after prefix            vim.api.nvim_win_set_cursor(input.winid, { 1, cursor_col })
+            -- Set cursor to end of content or after prefix
+            vim.api.nvim_win_set_cursor(input.winid, { 1, cursor_col })
           else
             -- If no lines, add input line and focus
             self:_add_input_line()
