@@ -913,8 +913,7 @@ function M:_focus_input()
             local first_line = lines[1] or ""
             local cursor_col = math.max(#prefix, #first_line)
             
-            -- Set cursor to end of content or after prefix
-            vim.api.nvim_win_set_cursor(input.winid, { 1, cursor_col })
+            -- Set cursor to end of content or after prefix            vim.api.nvim_win_set_cursor(input.winid, { 1, cursor_col })
           else
             -- If no lines, add input line and focus
             self:_add_input_line()
@@ -1246,7 +1245,13 @@ function M:_handle_server_content(params)
     end
     Logger.debug(tool_log)
 
-    local tool_text_completed = "✅ " .. (content.summary or content.name or "Tool call completed")
+    local tool_text_completed = "✅ "
+
+    if content.error then
+      tool_text_completed = "❌ "
+    end
+
+    tool_text_completed = tool_text_completed .. (content.summary or content.name or "Tool call completed")
 
     if not self:_replace_text(tool_text, tool_text_completed) then
       self:_add_message("assistant", tool_text_completed)
@@ -1527,8 +1532,9 @@ function M:_handle_tool_call_prepare(content)
     self._is_tool_call_streaming = true
     self._current_tool_call = {
       name = "",
+      summary = "",
       arguments = "",
-      summary = ""
+      details = {}
     }
   end
 
@@ -1554,6 +1560,7 @@ end
 function M:_display_tool_call()
   if not self._current_tool_call then return "" end
 
+  local diff = ""
   local tool_text = "🔧 " .. (self._current_tool_call.summary or "Tool call prepared")
   local tool_log = string.format("**Tool Call**: %s", self._current_tool_call.name or "unknown")
 
@@ -1561,13 +1568,12 @@ function M:_display_tool_call()
     tool_log = tool_log .. "\n```json\n" .. self._current_tool_call.arguments .. "\n```"
   end
 
-
   if self._current_tool_call.details and self._current_tool_call.details.diff then
-    tool_log = tool_log .. "\n\n**Diff**:\n```diff\n" .. self._current_tool_call.details.diff .. "\n```"
+    diff = "\n\n**Diff**:\n```diff\n" .. self._current_tool_call.details.diff .. "\n```"
   end
 
-  Logger.debug(tool_log)
-  self:_add_message("assistant", tool_text)
+  Logger.debug(tool_log .. diff)
+  self:_add_message("assistant", tool_text .. diff)
 
   return tool_text
 end
