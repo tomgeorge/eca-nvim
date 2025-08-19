@@ -1248,7 +1248,7 @@ function M:_handle_server_content(params)
 
     local tool_text_completed = "✅ " .. (content.summary or content.name or "Tool call completed")
 
-    if not self:_replace_message(tool_text, tool_text_completed) then
+    if not self:_replace_text(tool_text, tool_text_completed) then
       self:_add_message("assistant", tool_text_completed)
     end
 
@@ -1580,7 +1580,7 @@ end
 ---@param target string
 ---@param replacement string
 ---@return boolean changed True if any replacement was made
-function M:_replace_message(target, replacement)
+function M:_replace_text(target, replacement)
   local chat = self.containers.chat
 
   if not chat or not vim.api.nvim_buf_is_valid(chat.bufnr) then
@@ -1593,7 +1593,7 @@ function M:_replace_message(target, replacement)
     return false
   end
 
-  if not replacement then
+  if not replacement or replacement == "" then
     Logger.warn("Cannot replace message: empty replacement")
     return false
   end
