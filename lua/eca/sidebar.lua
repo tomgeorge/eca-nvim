@@ -1223,7 +1223,7 @@ function M:_handle_server_content(params)
     -- IMPORTANT: Return immediately - do NOT display anything for toolCallPrepare
     return
   elseif content.type == "toolCalled" then
-    local tool_text = ""
+    local tool_text = nil
 
     -- Add diff to current tool call if present in toolCalled content
     if self._current_tool_call and content.details then
@@ -1254,7 +1254,7 @@ function M:_handle_server_content(params)
 
     tool_text_completed = tool_text_completed .. (content.summary or content.name or "Tool call completed")
 
-    if not self:_replace_text(tool_text, tool_text_completed) then
+    if tool_text == nil or not self:_replace_text(tool_text or "", tool_text_completed) then
       self:_add_message("assistant", tool_text_completed)
     end
 
@@ -1559,7 +1559,7 @@ end
 
 ---@return string tool text
 function M:_display_tool_call()
-  if not self._current_tool_call then return "" end
+  if not self._current_tool_call then return nil end
 
   local diff = ""
   local tool_text = "🔧 " .. (self._current_tool_call.summary or "Tool call prepared")
@@ -1586,8 +1586,9 @@ end
 
 ---@param target string
 ---@param replacement string
+---@param opts? table|nil Optional search options: { max_search_lines = number, start_line = number }
 ---@return boolean changed True if any replacement was made
-function M:_replace_text(target, replacement)
+function M:_replace_text(target, replacement, opts)
   local chat = self.containers.chat
 
   if not chat or not vim.api.nvim_buf_is_valid(chat.bufnr) then
@@ -1608,14 +1609,31 @@ function M:_replace_text(target, replacement)
   local changed = false
 
   self:_safe_buffer_update(chat.bufnr, function()
-    local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
+    local total_lines = vim.api.nvim_buf_line_count(chat.bufnr)
+    opts = opts or {}
 
-    for i = #lines, 1, -1 do
-      local line = lines[i] or ""
+    -- Limit how many lines to search for performance with large buffers
+    local max_search_lines = tonumber(opts.max_search_lines) or 500
+
+    -- If a start line is provided, start searching from there (useful for targeted replacement)
+    local start_line = tonumber(opts.start_line) or total_lines
+    if start_line < 1 then start_line = 1 end
+    if start_line > total_lines then start_line = total_lines end
+
+    -- Determine the search window [end_line, start_line]
+    local end_line = math.max(1, start_line - max_search_lines + 1)
+
+    -- Fetch only the relevant range once (0-based indices for nvim API)
+    local range_lines = vim.api.nvim_buf_get_lines(chat.bufnr, end_line - 1, start_line, false)
+
+    -- Iterate from bottom to top within the range
+    for idx = #range_lines, 1, -1 do
+      local line = range_lines[idx] or ""
       local s_idx, e_idx = line:find(target, 1, true)
       if s_idx then
         local new_line = (line:sub(1, s_idx - 1)) .. replacement .. (line:sub(e_idx + 1))
-        vim.api.nvim_buf_set_lines(chat.bufnr, i - 1, i, false, { new_line })
+        local absolute_line = end_line + idx - 1 -- convert to absolute 1-based line
+        vim.api.nvim_buf_set_lines(chat.bufnr, absolute_line - 1, absolute_line, false, { new_line })
         changed = true
         break
       end
