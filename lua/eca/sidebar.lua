@@ -1223,6 +1223,8 @@ function M:_handle_server_content(params)
     -- IMPORTANT: Return immediately - do NOT display anything for toolCallPrepare
     return
   elseif content.type == "toolCalled" then
+    local tool_text = nil
+
     -- Add diff to current tool call if present in toolCalled content
     if self._current_tool_call and content.details then
       self._current_tool_call.details = content.details
@@ -1230,20 +1232,32 @@ function M:_handle_server_content(params)
 
     -- Show the final accumulated tool call if we have one
     if self._is_tool_call_streaming and self._current_tool_call then
-      self:_display_tool_call()
+      tool_text = self:_display_tool_call()
     end
 
     -- Show the tool result
-    local tool_text = string.format("✅ **Tool Result**: %s", content.name or "unknown")
+    local tool_log = string.format("**Tool Result**: %s", content.name or "unknown")
     if content.outputs and #content.outputs > 0 then
       for _, output in ipairs(content.outputs) do
         if output.type == "text" and output.content then
-          tool_text = tool_text .. "\n" .. output.content
+          tool_log = tool_log .. "\n" .. output.content
         end
       end
     end
-    self:_add_message("assistant", tool_text)
-    
+    Logger.debug(tool_log)
+
+    local tool_text_completed = "✅ "
+
+    if content.error then
+      tool_text_completed = "❌ "
+    end
+
+    tool_text_completed = tool_text_completed .. (content.summary or content.name or "Tool call completed")
+
+    if tool_text == nil or not self:_replace_text(tool_text or "", tool_text_completed) then
+      self:_add_message("assistant", tool_text_completed)
+    end
+
     -- Clean up tool call state
     self:_finalize_tool_call()
   end
@@ -1519,15 +1533,21 @@ function M:_handle_tool_call_prepare(content)
     self._is_tool_call_streaming = true
     self._current_tool_call = {
       name = "",
-      arguments = ""
+      summary = "",
+      arguments = "",
+      details = {}
     }
   end
-  
+
   -- Accumulate tool call data
   if content.name then
     self._current_tool_call.name = content.name
   end
-  
+
+  if content.summary then
+    self._current_tool_call.summary = content.summary
+  end
+
   if content.argumentsText then
     self._current_tool_call.arguments = (self._current_tool_call.arguments or "") .. content.argumentsText
   end
@@ -1537,26 +1557,90 @@ function M:_handle_tool_call_prepare(content)
   end
 end
 
+---@return string tool text
 function M:_display_tool_call()
-  if not self._current_tool_call then return end
-  
-  local tool_text = string.format("🔧 **Tool Call**: %s", self._current_tool_call.name or "unknown")
-  
+  if not self._current_tool_call then return nil end
+
+  local diff = ""
+  local tool_text = "🔧 " .. (self._current_tool_call.summary or "Tool call prepared")
+  local tool_log = string.format("**Tool Call**: %s", self._current_tool_call.name or "unknown")
+
   if self._current_tool_call.arguments and self._current_tool_call.arguments ~= "" then
-    tool_text = tool_text .. "\n```json\n" .. self._current_tool_call.arguments .. "\n```"
+    tool_log = tool_log .. "\n```json\n" .. self._current_tool_call.arguments .. "\n```"
   end
-  
 
   if self._current_tool_call.details and self._current_tool_call.details.diff then
-    tool_text = tool_text .. "\n\n**Diff**:\n```diff\n" .. self._current_tool_call.details.diff .. "\n```"
+    diff = "\n\n**Diff**:\n```diff\n" .. self._current_tool_call.details.diff .. "\n```"
   end
 
-  self:_add_message("assistant", tool_text)
+  Logger.debug(tool_log .. diff)
+  self:_add_message("assistant", tool_text .. diff)
+
+  return tool_text
 end
 
 function M:_finalize_tool_call()
   self._current_tool_call = nil
   self._is_tool_call_streaming = false
+end
+
+---@param target string
+---@param replacement string
+---@param opts? table|nil Optional search options: { max_search_lines = number, start_line = number }
+---@return boolean changed True if any replacement was made
+function M:_replace_text(target, replacement, opts)
+  local chat = self.containers.chat
+
+  if not chat or not vim.api.nvim_buf_is_valid(chat.bufnr) then
+    Logger.warn("Cannot replace message: chat buffer not available")
+    return false
+  end
+
+  if not target or target == "" then
+    Logger.warn("Cannot replace message: empty target")
+    return false
+  end
+
+  if not replacement or replacement == "" then
+    Logger.warn("Cannot replace message: empty replacement")
+    return false
+  end
+
+  local changed = false
+
+  self:_safe_buffer_update(chat.bufnr, function()
+    local total_lines = vim.api.nvim_buf_line_count(chat.bufnr)
+    opts = opts or {}
+
+    -- Limit how many lines to search for performance with large buffers
+    local max_search_lines = tonumber(opts.max_search_lines) or 500
+
+    -- If a start line is provided, start searching from there (useful for targeted replacement)
+    local start_line = tonumber(opts.start_line) or total_lines
+    if start_line < 1 then start_line = 1 end
+    if start_line > total_lines then start_line = total_lines end
+
+    -- Determine the search window [end_line, start_line]
+    local end_line = math.max(1, start_line - max_search_lines + 1)
+
+    -- Fetch only the relevant range once (0-based indices for nvim API)
+    local range_lines = vim.api.nvim_buf_get_lines(chat.bufnr, end_line - 1, start_line, false)
+
+    -- Iterate from bottom to top within the range
+    for idx = #range_lines, 1, -1 do
+      local line = range_lines[idx] or ""
+      local s_idx, e_idx = line:find(target, 1, true)
+      if s_idx then
+        local new_line = (line:sub(1, s_idx - 1)) .. replacement .. (line:sub(e_idx + 1))
+        local absolute_line = end_line + idx - 1 -- convert to absolute 1-based line
+        vim.api.nvim_buf_set_lines(chat.bufnr, absolute_line - 1, absolute_line, false, { new_line })
+        changed = true
+        break
+      end
+    end
+  end)
+
+  return changed
 end
 
 return M
