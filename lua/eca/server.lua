@@ -4,15 +4,21 @@ local RPC = require("eca.rpc")
 local PathFinder = require("eca.path_finder")
 local Logger = require("eca.logger")
 
+---@alias eca.ChatBehavior 'agent'|'plan'
+
 ---@class eca.Server
 ---@field private _proc? userdata Process handle
 ---@field private _rpc? eca.RPC JSON-RPC connection
 ---@field private _status string Current server status
 ---@field private _on_started? function Callback when server starts
 ---@field private _on_status_changed? function Callback when status changes
----@field private _server_capabilities? table Server capabilities
 ---@field private _chat_id? string Current chat ID
 ---@field private _path_finder eca.PathFinder Server path finder
+---@field chat_behaviors eca.ChatBehavior[]
+---@field chat_default_behavior eca.ChatBehavior
+---@field models string[]
+---@field chat_default_model string
+---@field chat_welcome_message string
 local M = {}
 M.__index = M
 
@@ -220,8 +226,12 @@ function M:_initialize_server()
 
     -- Store server capabilities
     if result then
-      self._server_capabilities = result
       Logger.debug("Server capabilities: " .. vim.inspect(result))
+      self.chat_behaviors = result.chatBehaviors
+      self.chat_default_behavior = result.chatDefaultBehavior
+      self.chat_default_model = result.chatDefaultModel
+      self.models = result.models
+      self.chat_welcome_message = result.chatWelcomeMessage
     end
 
     self:_change_status(ServerStatus.Running)

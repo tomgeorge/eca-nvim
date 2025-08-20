@@ -6,6 +6,7 @@ local Config = require("eca.config")
 local Split = require("nui.split")
 
 ---@class eca.Sidebar
+---@field chat eca.Chat
 ---@field public id integer The tab ID
 ---@field public containers table<string, NuiSplit> The nui containers
 ---@field private _initialized boolean Whether the sidebar has been initialized
@@ -37,6 +38,7 @@ local SAFETY_MARGIN = 2 -- Extra margin to prevent "Not enough room" errors
 ---@return eca.Sidebar
 function M.new(id)
   local instance = setmetatable({}, M)
+  instance.chat = require("eca.chat").new()
   instance.id = id
   instance.containers = {}
   instance._initialized = false
