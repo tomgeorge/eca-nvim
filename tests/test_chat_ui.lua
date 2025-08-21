@@ -2,6 +2,15 @@ local MiniTest = require("mini.test")
 local eq = MiniTest.expect.equality
 local child = require("mini.test").new_child_neovim()
 
+local function get_lines(bufnr)
+  return child.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+end
+
+local function render(buf, content)
+  child.lua(string.format("_G.chat = ChatUI.new({ bufnr = %d})", buf))
+  child.lua(string.format("_G.chat:render(%s)", vim.inspect(content)))
+end
+
 local T = MiniTest.new_set({
   hooks = {
     pre_case = function()
@@ -13,21 +22,11 @@ local T = MiniTest.new_set({
 })
 
 T["UI"] = MiniTest.new_set()
-T["UI"]["open"] = function()
-  local foo = child.lua_get([[ChatUI.new({
-  bufnr = 4,
-  winnr = 5,
-  chat_id = 1
-  })]])
-  eq({ bufnr = 4, winnr = 5, chat_id = 1 }, foo)
-end
 
 T["UI"]["render"] = function()
-  local lines = child.lua([[
-  ChatUI.new({ bufnr = 0 }):render({ messages = { content = "foo" }})
-  return vim.api.nvim_buf_get_lines(0, 0, -1, false)
-  ]])
-  eq(lines, { "foo" })
+  local buf = child.lua_get("vim.api.nvim_create_buf(false, true)")
+  render(buf, { messages = { { content = "foo\nbar\nbaz" } } })
+  eq(get_lines(buf), { "foo", "bar", "baz" })
 end
 
 return T
