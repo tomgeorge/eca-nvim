@@ -37,7 +37,13 @@ function Chat.new(opts)
   local self = setmetatable({
     messages = opts.messages or {},
     show_welcome = opts.show_welcome == nil and true or opts.show_welcome,
+    server = opts.server or nil,
   }, { __index = Chat })
+
+  local server = require("eca").server
+  if server:is_running() then
+    self.server = server
+  end
 
   self.ui = require("eca.chat.ui").new({
     bufnr = opts.bufnr,
@@ -52,18 +58,19 @@ end
 
 ---@param message eca.Message | string
 function Chat:add_message(message)
-  message = message.content or message
   if type(message) == "string" then
     table.insert(self.messages, { content = message })
     return
   end
-  table.insert(self.messages, message)
+  if message and message.content then
+    table.insert(self.messages, message)
+  end
 end
 
 ---@return string
 function Chat:welcome_message()
   if self.server and self.server:is_running() then
-    return self.server.welcome_message
+    return self.server.chat_welcome_message
   end
   return default_welcome
 end

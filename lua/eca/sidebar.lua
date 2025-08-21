@@ -90,12 +90,12 @@ function M:open(opts)
 
   self.chat = require("eca.chat").new({
     bufnr = self.containers.chat.bufnr,
-    server = require("eca.server"),
+    server = require("eca").server,
     messages = {},
     show_welcome = true,
   })
 
-  self.chat.ui:render({ messages = self.chat.messages })
+  self.chat.ui:render({ messages = self.chat.messages, show_welcome = true })
   -- Always focus input when opening
   self:_focus_input()
 end
