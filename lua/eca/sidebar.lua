@@ -38,7 +38,6 @@ local SAFETY_MARGIN = 2 -- Extra margin to prevent "Not enough room" errors
 ---@return eca.Sidebar
 function M.new(id)
   local instance = setmetatable({}, M)
-  instance.chat = require("eca.chat").new()
   instance.id = id
   instance.containers = {}
   instance._initialized = false
@@ -89,6 +88,13 @@ function M:open(opts)
     self:_refresh_container_content()
   end
 
+  self.chat = require("eca.chat").new({
+    bufnr = self.containers.chat.bufnr,
+    server = require("eca.server"),
+    messages = {},
+  })
+
+  self.chat.ui:render({ messages = self.chat.messages })
   -- Always focus input when opening
   self:_focus_input()
 end
