@@ -27,28 +27,7 @@ T["UI"]["render"] = function()
   ChatUI.new({ bufnr = 0 }):render({ messages = { content = "foo" }})
   return vim.api.nvim_buf_get_lines(0, 0, -1, false)
   ]])
-  eq(lines, { "a b c d e f g" })
-end
-
----@param messages {content: string}[]
-local function doit(messages)
-  return vim
-    .iter(messages)
-    :map(function(msg)
-      return msg.content
-    end)
-    :fold({}, function(acc, msg)
-      for _, m in ipairs(vim.split(msg, "\n")) do
-        table.insert(acc, m)
-      end
-      return acc
-    end)
-end
-
-T["messin"] = MiniTest.new_set()
-T["messin"]["around"] = function()
-  eq(doit({ { content = "hi" } }), { "hi" })
-  eq(doit({ { content = "omg" }, { content = "hi" }, { content = "hello\nthere" } }), { "omg", "hi", "hello", "there" })
+  eq(lines, { "foo" })
 end
 
 return T
