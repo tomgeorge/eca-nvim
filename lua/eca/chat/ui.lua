@@ -27,15 +27,24 @@ function UI:render(opts)
   if not opts.messages then
     return
   end
-  local acc = {}
-  local messages = vim
-    .iter(opts.messages)
-    :map(function(m)
-      return m.content
-    end)
-    :each(function(m) end)
 
-  vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, { messages.line })
+  ---@param messages eca.Message[]
+  local function add_messages_to_buf(messages)
+    local rendered = vim
+      .iter(messages)
+      :map(function(msg)
+        return msg.content
+      end)
+      :fold({}, function(acc, msg)
+        for _, m in ipairs(vim.split(msg, "\n")) do
+          table.insert(acc, m)
+        end
+        return acc
+      end)
+    vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, rendered)
+  end
+
+  add_messages_to_buf(opts.messages or {})
 end
 
 return UI

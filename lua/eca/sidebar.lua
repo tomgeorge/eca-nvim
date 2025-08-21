@@ -92,6 +92,7 @@ function M:open(opts)
     bufnr = self.containers.chat.bufnr,
     server = require("eca.server"),
     messages = {},
+    show_welcome = true,
   })
 
   self.chat.ui:render({ messages = self.chat.messages })

@@ -1,6 +1,6 @@
 ---@class eca.Chat
 ---@field server eca.server
----@field messages eca.Message
+---@field messages eca.Message[]
 ---@field ui eca.chat.UI
 
 ---@class eca.ChatOpts
@@ -8,7 +8,8 @@
 ---@field messages eca.Message
 ---@field show_welcome boolean
 
----@alias eca.Message {content: string} | string
+---@alias eca.Message {content: string}
+---@alias eca.AddMessageArg {content: string} | string
 
 local default_welcome = [[
   # 🤖 ECA - Editor Code Assistant
@@ -49,17 +50,17 @@ function Chat.new(opts)
   return self
 end
 
----@param message eca.Message
+---@param message eca.Message | string
 function Chat:add_message(message)
   message = message.content or message
-  if message then
-    for _, line in ipairs(vim.split(message, "\n")) do
-      table.insert(self.messages, { content = line })
-    end
+  if type(message) == "string" then
+    table.insert(self.messages, { content = message })
+    return
   end
+  table.insert(self.messages, message)
 end
 
----@return eca.Message[]
+---@return string
 function Chat:welcome_message()
   if self.server and self.server:is_running() then
     return self.server.welcome_message

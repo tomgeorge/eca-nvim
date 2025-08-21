@@ -13,6 +13,18 @@ end, function(messages, str)
   return string.format("Pattern %s\nnot found in %s", str, vim.inspect(messages))
 end)
 
+H.expect_array_size_eq = MiniTest.new_expectation("Array size", function(tbl, expected)
+  return #tbl == expected
+end, function(tbl, expected)
+  return string.format("Expected array size of %d but was %d", expected, #tbl)
+end)
+
+H.expect_array_size_gt = MiniTest.new_expectation("Array size", function(tbl, expected)
+  return #tbl > expected
+end, function(tbl, expected)
+  return string.format("Expected greater than %d but was %d", expected, #tbl)
+end)
+
 H.expect_match = MiniTest.new_expectation("string matching", function(str, pattern)
   return str:find(pattern) ~= nil
 end, function(str, pattern)

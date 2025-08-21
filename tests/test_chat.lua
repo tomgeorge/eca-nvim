@@ -27,11 +27,8 @@ T["Chat"]["new()"] = function()
   local chat = child.lua_get([[
   require("eca.chat").new()
   ]])
-  local welcome_message = child.lua([[
-    local chat = require("eca.chat").new()
-    return chat:welcome_message()
-  ]])
   helpers.expect_contains_message(chat.messages, "**Welcome to ECA!**")
+  helpers.expect_array_size_eq(chat.messages, 1)
   eq(chat.server, nil)
 end
 
@@ -40,23 +37,13 @@ T["Chat"]["add_message()"] = function()
   child.lua([[
   local chat = require("eca.chat").new()
   _G.chat = chat
-  return _G.chat
   ]])
   write_message("What's up?")
-  helpers.expect_contains_message(child.lua_get("_G.chat.messages"), "What's up?")
   write_message({ content = "Not much" })
-  eq(child.lua_get("_G.chat.messages[#_G.chat.messages]"), { content = "Not much" })
-  eq(3, child.lua_get("#_G.chat.messages"))
-end
-
-T["Chat"]["add_message splits on newlines for replacement"] = function()
-  child.lua([[
-  local chat = require("eca.chat").new()
-  _G.chat = chat
-  return _G.chat
-  ]])
-  write_message("Multi-line message\nbroken up by newlines")
-  eq(child.lua_get("#_G.chat.messages"), 3)
+  helpers.expect_contains_message(child.lua_get("_G.chat.messages"), "What's up?")
+  helpers.expect_contains_message(child.lua_get("_G.chat.messages"), "Not much")
+  local chat = child.lua_get("_G.chat")
+  helpers.expect_array_size_eq(chat.messages, 3)
 end
 
 return T
