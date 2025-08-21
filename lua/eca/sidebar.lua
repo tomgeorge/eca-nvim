@@ -943,8 +943,6 @@ function M:_focus_input()
       if mode == "n" then
         vim.cmd("startinsert!")
       end
-
-      Logger.debug("Input focused successfully (fallback)")
     end
   end, 50)
 end
