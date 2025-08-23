@@ -89,6 +89,12 @@ end
 ---@param message string
 ---@param level integer
 function M.log(message, level)
+  if vim.in_fast_event() then
+    return vim.schedule(function()
+      M.log(message, level)
+    end)
+  end
+
   if not M.config then
     return
   end
@@ -98,6 +104,7 @@ function M.log(message, level)
   end
 
   local log_path = M.get_log_path()
+
   vim.fn.mkdir(vim.fn.fnamemodify(log_path, ":h"), "p")
 
   local timestamp = os.date("%Y-%m-%d %H:%M:%S")
