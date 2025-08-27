@@ -168,7 +168,6 @@ require("eca").setup({
 | `:EcaServerStart` | Starts ECA server manually | `:EcaServerStart` |
 | `:EcaServerStop` | Stops ECA server | `:EcaServerStop` |
 | `:EcaServerRestart` | Restarts ECA server | `:EcaServerRestart` |
-| `:EcaServerStatus` | Shows detailed server status | `:EcaServerStatus` |
 | `:EcaSend <message>` | Sends message directly | `:EcaSend Explain this function` |
 
 ## ⌨️ Keyboard Shortcuts
@@ -459,9 +458,6 @@ Consider readability and maintainability.
 #### Server Management
 
 ```vim
-" Check status
-:EcaServerStatus
-
 " Restart if there are issues
 :EcaServerRestart
 
@@ -515,7 +511,6 @@ Consider readability and maintainability.
 
 - Check if `curl` and `unzip` are installed
 - Try setting `server_path` manually with absolute path
-- Run `:EcaServerStatus` for diagnostics
 - Check logs with `debug = true` in configuration
 - Try `:EcaServerRestart`
 

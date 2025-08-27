@@ -157,34 +157,6 @@ function M.setup()
     desc = "Restart ECA server",
   })
 
-  vim.api.nvim_create_user_command("EcaServerStatus", function()
-    local eca = require("eca")
-    local status = eca.server and eca.server:status() or "Not initialized"
-    local status_icon = "○"
-
-    if status == "Running" then
-      status_icon = "✓"
-    elseif status == "Starting" then
-      status_icon = "⋯"
-    elseif status == "Failed" then
-      status_icon = "✗"
-    end
-
-    Logger.notify("ECA Server Status: " .. status .. " " .. status_icon, vim.log.levels.INFO)
-
-    -- Also show path info if available
-    if eca.server and eca.server._path_finder then
-      local config = require("eca.config")
-      if config.server_path and config.server_path ~= "" then
-        Logger.notify("Server path: " .. config.server_path .. " (custom)", vim.log.levels.INFO)
-      else
-        Logger.notify("Server path: auto-detected/downloaded", vim.log.levels.INFO)
-      end
-    end
-  end, {
-    desc = "Show ECA server status with details",
-  })
-
   vim.api.nvim_create_user_command("EcaLogs", function(opts)
     local Api = require("eca.api")
     local subcommand = opts.args and opts.args:match("%S+") or "show"
@@ -292,8 +264,6 @@ function M.setup()
   end, {
     desc = "Emergency stop for infinite loops or runaway responses",
   })
-
-
 
   vim.api.nvim_create_user_command("EcaFixTreesitter", function()
     local Utils = require("eca.utils")
