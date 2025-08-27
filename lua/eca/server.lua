@@ -32,6 +32,8 @@ function M.new(opts)
       require("eca.logger").notify("Server stopped", vim.log.levels.INFO)
     end,
     ---@param server eca.Server
+    ---@param method string
+    ---@param params table
     on_notification = function(server, method, params)
       return vim.schedule(function()
         server:handle_content(method, params)
