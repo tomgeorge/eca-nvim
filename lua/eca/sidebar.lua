@@ -33,14 +33,6 @@ local WINDOW_MARGIN = 3 -- Additional margin for window borders and spacing
 local UI_ELEMENTS_HEIGHT = 2 -- Reserve space for statusline and tabline
 local SAFETY_MARGIN = 2 -- Extra margin to prevent "Not enough room" errors
 
----@param sidebar eca.Sidebar
----@return fun(message: table)
-local function make_handler(sidebar)
-  return function(message)
-    sidebar:handle_chat_content(message)
-  end
-end
-
 ---@param id integer Tab ID
 ---@return eca.Sidebar
 function M.new(id)
@@ -64,7 +56,9 @@ function M.new(id)
   instance._response_start_time = 0
   instance._max_response_length = 50000 -- 50KB max response
 
-  require("eca.observer").subscribe(id, make_handler(instance))
+  require("eca.observer").subscribe(id, function(message)
+    instance:handle_chat_content(message)
+  end)
   return instance
 end
 
@@ -1170,7 +1164,7 @@ function M:_send_message(message)
     -- Include active contexts in the message
     local contexts = self:get_contexts()
     eca.server:send_request("chat/prompt", {
-      chatId = nil,
+      chatId = self.id,
       requestId = tostring(os.time()),
       message = message,
       contexts = contexts or {},
