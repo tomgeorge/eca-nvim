@@ -55,6 +55,10 @@ function M.new(id)
   instance._augroup = vim.api.nvim_create_augroup("eca_sidebar_" .. id, { clear = true })
   instance._response_start_time = 0
   instance._max_response_length = 50000 -- 50KB max response
+
+  require("eca.observer").subscribe(id, function(message)
+    instance:handle_chat_content(message)
+  end)
   return instance
 end
 
@@ -1160,7 +1164,7 @@ function M:_send_message(message)
     -- Include active contexts in the message
     local contexts = self:get_contexts()
     eca.server:send_request("chat/prompt", {
-      chatId = nil,
+      chatId = self.id,
       requestId = tostring(os.time()),
       message = message,
       contexts = contexts or {},
@@ -1177,6 +1181,12 @@ function M:_send_message(message)
   else
     self:_add_message("assistant", "❌ **Error**: ECA server is not running. Please check server status.")
     self:_add_input_line()
+  end
+end
+
+function M:handle_chat_content(message)
+  if message.params then
+    self:handle_chat_content_received(message.params)
   end
 end
 
