@@ -12,8 +12,8 @@ local Logger = require("eca.logger")
 ---@field on_start? function Callback when the server process starts
 ---@field on_stop function Callback when the server stops
 ---Called when a notification is received(message without an ID)
----@field on_notification fun(server: eca.Server, method: string, params: table)
----@field capabilities table Server capabilities
+---@field on_notification fun(server: eca.Server, message: table)
+---@field capabilities eca.ServerCapabilities Server capabilities
 ---@field private path_finder eca.PathFinder Server path finder
 ---@field pending_requests {id: fun(err, data)} -- outgoing requests with callbacks
 local M = {}
@@ -31,12 +31,11 @@ function M.new(opts)
     on_stop = function()
       require("eca.logger").notify("Server stopped", vim.log.levels.INFO)
     end,
-    ---@param server eca.Server
-    ---@param method string
-    ---@param params table
-    on_notification = function(server, method, params)
+    ---@param _ eca.Server
+    ---@param message table
+    on_notification = function(_, message)
       return vim.schedule(function()
-        server:handle_content(method, params)
+        require("eca.observer").notify(message)
       end)
     end,
     path_finder = PathFinder:new(),
@@ -237,7 +236,7 @@ function M:handle_message(message)
     end
   elseif message.method and not message.id then
     if self.on_notification then
-      self.on_notification(self, message.method, message.params)
+      self:on_notification(message)
     end
   end
 end
