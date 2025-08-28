@@ -208,16 +208,6 @@ function M:stop()
   self.initialized = false
 end
 
-function M:handle_content(method, params)
-  if method == "chat/contentReceived" then
-    local eca = require("eca")
-    local sidebar = eca.get(false)
-    if sidebar and params then
-      sidebar:handle_chat_content_received(params)
-    end
-  end
-end
-
 ---@return boolean
 function M:is_running()
   return self.process and not self.process:is_closing()
