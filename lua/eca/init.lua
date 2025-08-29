@@ -168,7 +168,7 @@ function M._init(id)
   local sidebar = M.sidebars[id]
 
   if not sidebar then
-    sidebar = Sidebar.new(id)
+    sidebar = Sidebar.new(id, M.mediator)
     M.sidebars[id] = sidebar
   end
   M.current = { sidebar = sidebar }
@@ -241,11 +241,9 @@ function M.setup(opts)
   H.keymaps()
   H.signs()
 
-  -- Initialize status bar
-
   -- Initialize the ECA server with callbacks
   M.server = Server.new()
-
+  M.mediator = require("eca.mediator").new(M.server)
   -- Start server automatically in background
   vim.defer_fn(function()
     M.server:start()
