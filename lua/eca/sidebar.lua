@@ -8,6 +8,7 @@ local Split = require("nui.split")
 ---@class eca.Sidebar
 ---@field public id integer The tab ID
 ---@field public containers table<string, NuiSplit> The nui containers
+---@field mediator eca.Mediator mediator to send server requests to
 ---@field private _initialized boolean Whether the sidebar has been initialized
 ---@field private _current_response_buffer string Buffer for accumulating streaming response
 ---@field private _is_streaming boolean Whether we're currently receiving a streaming response
@@ -34,10 +35,12 @@ local UI_ELEMENTS_HEIGHT = 2 -- Reserve space for statusline and tabline
 local SAFETY_MARGIN = 2 -- Extra margin to prevent "Not enough room" errors
 
 ---@param id integer Tab ID
+---@param mediator eca.Mediator
 ---@return eca.Sidebar
-function M.new(id)
+function M.new(id, mediator)
   local instance = setmetatable({}, M)
   instance.id = id
+  instance.mediator = mediator
   instance.containers = {}
   instance._initialized = false
   instance._current_response_buffer = ""
@@ -1158,30 +1161,24 @@ function M:_send_message(message)
   -- Store the last user message to avoid duplication
   self._last_user_message = message
 
-  -- Send message to ECA server
-  local eca = require("eca")
-  if eca.server and eca.server:is_running() then
-    -- Include active contexts in the message
-    local contexts = self:get_contexts()
-    eca.server:send_request("chat/prompt", {
-      chatId = self.id,
-      requestId = tostring(os.time()),
-      message = message,
-      contexts = contexts or {},
-    }, function(err, result)
-      if err then
-        Logger.error("Failed to send message to ECA server: " .. tostring(err))
-        self:_add_message("assistant", "❌ **Error**: Failed to send message to ECA server")
-      end
-      -- Response will come through server notification handler
-      self:_add_input_line()
-
-      self:handle_chat_content_received(result.params)
-    end)
-  else
-    self:_add_message("assistant", "❌ **Error**: ECA server is not running. Please check server status.")
+  local contexts = self:get_contexts()
+  self.mediator:send("chat/prompt", {
+    chatId = self.id,
+    requestId = tostring(os.time()),
+    message = message,
+    contexts = contexts or {},
+  }, function(err, result)
+    if err then
+      print("err is " .. err)
+      Logger.error("Failed to send message to ECA server: " .. err)
+      self:_add_message("assistant", "❌ **Error**: Failed to send message to ECA server: " .. err)
+      return
+    end
+    -- Response will come through server notification handler
     self:_add_input_line()
-  end
+
+    self:handle_chat_content_received(result.params)
+  end)
 end
 
 function M:handle_chat_content(message)

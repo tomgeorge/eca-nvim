@@ -22,6 +22,10 @@
 
 ---@alias eca.ToolCallDetails eca.FileChangedDetails
 
+---TODO: flesh these out
+---@alias eca.MessageParams table
+---@alias eca.Message table
+
 ---@class eca.FileChangedDetails
 ---@field type 'fileChange'
 ---@field path string the file path of this file change
