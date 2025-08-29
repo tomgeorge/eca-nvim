@@ -150,6 +150,12 @@ end
 ---@param level? integer vim.log.levels (default: INFO)
 ---@param opts? {title?: string}
 function M.notify(message, level, opts)
+  if vim.in_fast_event() then
+    return vim.schedule(function()
+      M.notify(message, level, opts)
+    end)
+  end
+
   level = level or vim.log.levels.INFO
   opts = opts or {}
 
