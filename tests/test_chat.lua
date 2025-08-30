@@ -1,0 +1,112 @@
+local MiniTest = require("mini.test")
+local eq = MiniTest.expect.equality
+
+local child = MiniTest.new_child_neovim()
+
+local T = MiniTest.new_set({
+  hooks = {
+    pre_case = function()
+      child.restart({ "-u", "scripts/minimal_init.lua" })
+      child.lua([[
+        chat = require("eca.chat").new()
+      ]])
+    end,
+    post_once = child.stop,
+  },
+})
+
+T["Chat"] = MiniTest.new_set()
+T["Chat"]["new"] = function()
+  local chat = child.lua_get("chat")
+  eq(chat.messages, {})
+  eq(chat.contexts, { { type = "repoMap" } })
+  eq(type(chat.ui), "table")
+
+  local opts = {
+    id = 5,
+    ui = {
+      windows = {
+        chat = {
+          buf = 3,
+        },
+      },
+    },
+  }
+
+  chat = child.lua(
+    [[
+    chat = require("eca.chat").new(...)
+    return chat
+  ]],
+    { opts }
+  )
+  eq(chat.id, 5)
+  eq(chat.ui.id, 5)
+  eq(chat.ui.windows.chat.buf, 3)
+  eq(chat.ui.windows.chat.win, nil)
+end
+
+T["Chat"]["push"] = function()
+  local chat = child.lua([[
+    chat:push("A test message")
+    return chat
+  ]])
+  eq(chat.messages, { "A test message" })
+end
+
+T["Chat"]["is_open"] = function()
+  local is_open = child.lua_get("chat:is_open()")
+  eq(is_open, false)
+  child.lua("chat:open()")
+  is_open = child.lua_get("chat:is_open()")
+  eq(is_open, true)
+end
+
+T["Chat"]["open"] = function()
+  local chat = child.lua([[
+    chat:push("message")
+    chat:push("message 2")
+    chat:push("message 3")
+    chat:open()
+    return chat
+  ]])
+  local lines = child.api.nvim_buf_get_lines(chat.ui.windows.chat.buf, 0, -1, false)
+  local win = child.api.nvim_get_current_win()
+  eq(chat.ui.windows.input.win, win)
+  local screenshot = child.get_screenshot()
+  MiniTest.expect.reference_screenshot(screenshot, nil, {})
+  eq(#lines, 3)
+end
+
+T["Chat"]["close"] = function()
+  child.lua([[
+    chat:push("message")
+    chat:push("message 2")
+    chat:push("message 3")
+    chat:open()
+    chat:close()
+    return chat
+  ]])
+  local is_open = child.lua_get("chat:is_open()")
+  eq(is_open, false)
+  local screenshot = child.get_screenshot()
+  MiniTest.expect.reference_screenshot(screenshot, nil, {})
+end
+
+T["Chat"]["help"] = function()
+  local help_buf = child.lua_get("chat.ui.windows.help.buf")
+  local chat = child.lua([[
+    chat:open_help()
+    return chat
+  ]])
+
+  local screenshot = child.get_screenshot()
+  local want = {
+    "<Leader>ax - Close chat window",
+    "",
+    "Press q to close",
+  }
+  eq(want, child.api.nvim_buf_get_lines(help_buf, 0, -1, false))
+end
+
+return T

@@ -61,6 +61,7 @@ M._defaults = {
       prefix = "> ",
       height = 8, -- Height of the input window
     },
+    icons = true,
     edit = {
       border = "rounded",
       start_insert = true, -- Start insert mode when opening the edit window

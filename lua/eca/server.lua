@@ -13,7 +13,6 @@ local Logger = require("eca.logger")
 ---@field on_stop function Callback when the server stops
 ---Called when a notification is received(message without an ID)
 ---@field on_notification fun(server: eca.Server, message: table)
----@field capabilities eca.ServerCapabilities Server capabilities
 ---@field private path_finder eca.PathFinder Server path finder
 ---@field pending_requests {id: fun(err, data)} -- outgoing requests with callbacks
 local M = {}
@@ -50,7 +49,6 @@ function M.new(opts)
     path_finder = opts.path_finder,
     messages = {},
     pending_requests = {},
-    capabilities = {},
     initialized = false,
     next_id = 0,
   }, { __index = M })
@@ -67,7 +65,7 @@ local function on_stdout(server)
         if #message.content ~= message.content_length then
           return
         end
-        table.insert(messages, message)
+        table.insert(server.messages, message)
         local msg = vim.json.decode(message.content)
         server:handle_message(msg)
       end)
@@ -171,13 +169,10 @@ function M:initialize()
       },
     },
     workspaceFolders = workspace_folders,
-  }, function(err, result)
+  }, function(err, _)
     if err then
       Logger.notify("Could not initialize server: " .. err, vim.log.levels.ERROR)
       return
-    end
-    if result then
-      self.capabilities = result
     end
 
     self:send_notification("initialized", {})
@@ -185,6 +180,7 @@ function M:initialize()
     if self.on_initialize then
       self.on_initialize()
     end
+    self.initialized = true
   end)
 end
 
@@ -259,6 +255,7 @@ function M:send_request(method, params, callback)
   end
 
   local json = vim.json.encode(message)
+  table.insert(self.messages, { content = json, content_length = #json })
   local content = string.format("Content-Length: %d\r\n\r\n%s", #json, json)
   self.process:write(content)
 end
