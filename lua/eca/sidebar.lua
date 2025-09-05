@@ -1161,6 +1161,9 @@ function M:_send_message(message)
   -- Store the last user message to avoid duplication
   self._last_user_message = message
 
+  -- Add user message to chat
+  self:_add_message("user", message)
+
   local contexts = self:get_contexts()
   self.mediator:send("chat/prompt", {
     chatId = self.id,
@@ -1272,6 +1275,11 @@ function M:_handle_streaming_text(text)
     return
   end
   Logger.debug("Received text chunk: '" .. text:sub(1, 50) .. (text:len() > 50 and "..." or "") .. "'")
+
+  if vim.trim(text) == vim.trim(self._last_user_message) then
+    Logger.debug("Ignoring duplicate user message in response")
+    return
+  end
 
   if not self._is_streaming then
     Logger.debug("Starting streaming response")
