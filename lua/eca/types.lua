@@ -43,6 +43,15 @@
 ---@field summary string  summary text to present about this tool call
 ---@field details eca.ToolCallDetails extra details for the call. clients may use this to present a different UX for this tool call.
 
+---@class eca.ToolCallRunning
+---@field type 'toolCallRunning'
+---@field origin eca.ToolCallOrigin
+---@field id string the id of the tool call
+---@field name string name of the tool
+---@field arguments {[string]: string} arguments of the tool call
+---@field summary? string  summary text to present about this tool call
+---@field details? eca.ToolCallDetails extra details for the call. clients may use this to present a different UX for this tool call.
+
 ---@class eca.ToolCalled
 ---@field type 'toolCalled'
 ---@field id string the id of the tool call

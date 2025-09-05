@@ -1224,17 +1224,15 @@ function M:handle_chat_content_received(params)
     self:_handle_tool_call_prepare(content)
     -- IMPORTANT: Return immediately - do NOT display anything for toolCallPrepare
     return
+  elseif content.type == "toolCallRunning" then
+    -- Show the accumulated tool call
+    self:_display_tool_call(content)
   elseif content.type == "toolCalled" then
-    local tool_text = nil
+    local tool_text = (content.summary or "Tool call")
 
     -- Add diff to current tool call if present in toolCalled content
     if self._current_tool_call and content.details then
       self._current_tool_call.details = content.details
-    end
-
-    -- Show the final accumulated tool call if we have one
-    if self._is_tool_call_streaming and self._current_tool_call then
-      tool_text = self:_display_tool_call()
     end
 
     -- Show the tool result
@@ -1254,9 +1252,10 @@ function M:handle_chat_content_received(params)
       tool_text_completed = "❌ "
     end
 
-    tool_text_completed = tool_text_completed .. (content.summary or content.name or "Tool call completed")
+    local tool_text_running = "🔧 " .. tool_text
+    tool_text_completed = tool_text_completed .. tool_text
 
-    if tool_text == nil or not self:_replace_text(tool_text or "", tool_text_completed) then
+    if tool_text == nil or not self:_replace_text(tool_text_running, tool_text_completed) then
       self:_add_message("assistant", tool_text_completed)
     end
 
@@ -1562,14 +1561,13 @@ function M:_handle_tool_call_prepare(content)
   end
 end
 
----@return string tool text
-function M:_display_tool_call()
-  if not self._current_tool_call then
+function M:_display_tool_call(content)
+  if not self._is_tool_call_streaming or not self._current_tool_call then
     return nil
   end
 
   local diff = ""
-  local tool_text = "🔧 " .. (self._current_tool_call.summary or "Tool call prepared")
+  local tool_text = "🔧 " .. (content.summary or self._current_tool_call.summary or "Tool call")
   local tool_log = string.format("**Tool Call**: %s", self._current_tool_call.name or "unknown")
 
   if self._current_tool_call.arguments and self._current_tool_call.arguments ~= "" then
@@ -1582,8 +1580,6 @@ function M:_display_tool_call()
 
   Logger.debug(tool_log .. diff)
   self:_add_message("assistant", tool_text .. diff)
-
-  return tool_text
 end
 
 function M:_finalize_tool_call()
