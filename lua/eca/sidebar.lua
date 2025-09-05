@@ -1367,11 +1367,14 @@ function M:_add_message(role, content)
       table.insert(lines, "")
     end
 
-    -- Add role header with better markdown formatting
+    -- Add role header with better markdown formatting (configurable)
+    local user_header = (Config.chat and Config.chat.headers and Config.chat.headers.user) or "## 👤 You"
+    local assistant_header = (Config.chat and Config.chat.headers and Config.chat.headers.assistant) or "## 🤖 ECA"
+
     if role == "user" then
-      table.insert(lines, "## 👤 You")
+      table.insert(lines, user_header)
     else
-      table.insert(lines, "## 🤖 ECA")
+      table.insert(lines, assistant_header)
     end
 
     table.insert(lines, "")
@@ -1461,8 +1464,11 @@ function M:_get_last_message_line()
   end
 
   local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
+  local assistant_header = (Config.chat and Config.chat.headers and Config.chat.headers.assistant) or "## 🤖 ECA"
+
   for i = #lines, 1, -1 do
-    if lines[i] and lines[i]:match("^## 🤖 ECA") then
+    local line = lines[i]
+    if line and line:sub(1, #assistant_header) == assistant_header then
       return i
     end
   end

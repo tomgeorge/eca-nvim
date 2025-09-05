@@ -45,6 +45,14 @@ require("eca").setup({
     toggle = "<leader>et",    -- Toggle sidebar
   },
 
+  -- === CHAT ===
+  chat = {
+    headers = {
+      user = "## 👤 You",
+      assistant = "## 🤖 ECA",
+    },
+  },
+
   -- === WINDOW SETTINGS ===
   windows = {
     -- Automatic line wrapping
@@ -92,6 +100,24 @@ require("eca").setup({
 ```
 
 ---
+
+## Chat headers
+You can customize the chat role headers shown in the sidebar. For example:
+
+```lua
+require("eca").setup({
+  chat = {
+    headers = {
+      user = "## 👨 Me",       -- default: "## 👤 You"
+      assistant = "## 🤖 Copilot", -- default: "## 🤖 ECA"
+    },
+  },
+})
+```
+
+Notes:
+- These are plain strings; they will be printed verbatim as a single line.
+- A blank line is automatically inserted after the header.
 
 ## Presets
 
