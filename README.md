@@ -36,7 +36,7 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 - [ECA GitHub](https://github.com/editor-code-assistant)
 
 ## 📄 License
-see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 Inspired by:
