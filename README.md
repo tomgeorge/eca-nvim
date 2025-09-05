@@ -23,26 +23,25 @@ A modern Neovim plugin that integrates [ECA (Editor Code Assistant)](https://eca
 > Requires Neovim >= 0.8.0, curl and unzip.
 
 ## 📚 Documentation
-- Installation and system requirements: [docs/installation.md](./docs/installation.md)
-- Usage guide (commands, keymaps, tips): [docs/usage.md](./docs/usage.md)
-- Configuration reference and presets: [docs/configuration.md](./docs/configuration.md)
-- Troubleshooting common issues: [docs/troubleshooting.md](./docs/troubleshooting.md)
-- Development & contributing: [docs/development.md](./docs/development.md)
+- [Installation and system requirements](./docs/installation.md)
+- [Usage guide (commands, keymaps, tips)](./docs/usage.md)
+- [Configuration reference and presets](./docs/configuration.md)
+- [Troubleshooting common issues](./docs/troubleshooting.md)
+- [Development & contributing](./docs/development.md)
 
 ## 🔗 Useful Links
-- Official ECA Website: https://eca.dev/
-- ECA Documentation: https://docs.eca.dev/
-- VS Code Plugin: https://marketplace.visualstudio.com/items?itemName=editor-code-assistant.eca-vscode
-- ECA GitHub: https://github.com/editor-code-assistant
+- [Official ECA Website](https://eca.dev/)
+- [ECA Documentation](https://docs.eca.dev/)
+- [VS Code Plugin](https://marketplace.visualstudio.com/items?itemName=editor-code-assistant.eca-vscode)
+- [ECA GitHub](https://github.com/editor-code-assistant)
 
 ## 📄 License
-MIT License — see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 Inspired by:
-- avante.nvim — base structure and UI concepts
-- eca-vscode — ECA server integration
-- The Neovim community
+- [avante.nvim](https://github.com/yetone/avante.nvim) — base structure and UI concepts
+- [eca-vscode](https://github.com/editor-code-assistant/eca-vscode) — ECA server integration
 
 ---
 
