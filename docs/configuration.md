@@ -101,24 +101,6 @@ require("eca").setup({
 
 ---
 
-## Chat headers
-You can customize the chat role headers shown in the sidebar. For example:
-
-```lua
-require("eca").setup({
-  chat = {
-    headers = {
-      user = "## 👨 Me\n\n",       -- default: "## 👤 You\n\n"
-      assistant = "## 🤖 Assistant\n\n", -- default: "## 🤖 ECA\n\n"
-    },
-  },
-})
-```
-
-Notes:
-- These are plain strings; they will be printed verbatim as a single line.
-- A blank line is automatically inserted after the header.
-
 ## Presets
 
 ### Minimalist
@@ -126,6 +108,12 @@ Notes:
 require("eca").setup({
   behaviour = { show_status_updates = false },
   windows = { width = 30 },
+  chat = {
+    headers = {
+      user = "> ",
+      assistant = "",
+    },
+  },
 })
 ```
 
@@ -138,6 +126,12 @@ require("eca").setup({
     wrap = true,
     sidebar_header = { enabled = true, rounded = true },
     input = { prefix = "💬 ", height = 10 },
+  },
+  chat = {
+    headers = {
+      user = "## 👤 You\n\n",
+      assistant = "## 🤖 ECA\n\n",
+    },
   },
 })
 ```
