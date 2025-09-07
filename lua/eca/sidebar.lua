@@ -26,6 +26,7 @@ local Split = require("nui.split")
 ---@field private _response_start_time number Timestamp when streaming started
 ---@field private _max_response_length number Maximum allowed response length
 ---@field private _headers table Table of headers for the chat
+
 local M = {}
 M.__index = M
 
