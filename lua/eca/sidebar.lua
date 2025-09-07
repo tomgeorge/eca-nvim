@@ -1413,7 +1413,7 @@ function M:_add_message(role, content)
       end
     end
 
-    if header ~= "" then
+    if content ~= "" then
       table.insert(lines, "")
     end
 
