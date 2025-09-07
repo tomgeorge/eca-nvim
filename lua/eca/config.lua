@@ -45,8 +45,8 @@ M._defaults = {
   },
   chat = {
     headers = {
-      user = "## 👤 You",
-      assistant = "## 🤖 ECA",
+      user = "## 👤 You\n\n",
+      assistant = "## 🤖 ECA\n\n",
     },
   },
   windows = {
