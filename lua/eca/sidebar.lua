@@ -1474,10 +1474,6 @@ function M:_get_last_message_line()
   end
 
   local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
-
-  Logger.debug("DEBUG: Finding last assistant message line in " .. #lines .. " lines")
-  Logger.debug("DEBUG: Finding last assistant message line in " .. vim.inspect(lines) .. " lines")
-
   local assistant_header_lines = Utils.split_lines(self._headers.assistant)
   local assistant_header = ""
 
