@@ -48,8 +48,8 @@ require("eca").setup({
   -- === CHAT ===
   chat = {
     headers = {
-      user = "## 👤 You",
-      assistant = "## 🤖 ECA",
+      user = "## 👤 You\n\n",
+      assistant = "## 🤖 ECA\n\n",
     },
   },
 
@@ -108,8 +108,8 @@ You can customize the chat role headers shown in the sidebar. For example:
 require("eca").setup({
   chat = {
     headers = {
-      user = "## 👨 Me",       -- default: "## 👤 You"
-      assistant = "## 🤖 Copilot", -- default: "## 🤖 ECA"
+      user = "## 👨 Me\n\n",       -- default: "## 👤 You\n\n"
+      assistant = "## 🤖 Assistant\n\n", -- default: "## 🤖 ECA\n\n"
     },
   },
 })
