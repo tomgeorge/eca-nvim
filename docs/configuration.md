@@ -45,6 +45,14 @@ require("eca").setup({
     toggle = "<leader>et",    -- Toggle sidebar
   },
 
+  -- === CHAT ===
+  chat = {
+    headers = {
+      user = "## 👤 You\n\n",
+      assistant = "## 🤖 ECA\n\n",
+    },
+  },
+
   -- === WINDOW SETTINGS ===
   windows = {
     -- Automatic line wrapping
@@ -100,6 +108,12 @@ require("eca").setup({
 require("eca").setup({
   behaviour = { show_status_updates = false },
   windows = { width = 30 },
+  chat = {
+    headers = {
+      user = "> ",
+      assistant = "",
+    },
+  },
 })
 ```
 
@@ -112,6 +126,12 @@ require("eca").setup({
     wrap = true,
     sidebar_header = { enabled = true, rounded = true },
     input = { prefix = "💬 ", height = 10 },
+  },
+  chat = {
+    headers = {
+      user = "## 👤 You\n\n",
+      assistant = "## 🤖 ECA\n\n",
+    },
   },
 })
 ```

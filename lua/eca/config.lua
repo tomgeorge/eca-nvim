@@ -43,6 +43,12 @@ M._defaults = {
     focus = "<leader>ef",
     toggle = "<leader>et",
   },
+  chat = {
+    headers = {
+      user = "## 👤 You\n\n",
+      assistant = "## 🤖 ECA\n\n",
+    },
+  },
   windows = {
     wrap = true,
     width = 40, -- Window width as percentage (40 = 40% of screen width)

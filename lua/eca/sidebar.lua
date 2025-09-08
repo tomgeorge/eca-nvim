@@ -25,6 +25,8 @@ local Split = require("nui.split")
 ---@field private _augroup integer Autocmd group ID
 ---@field private _response_start_time number Timestamp when streaming started
 ---@field private _max_response_length number Maximum allowed response length
+---@field private _headers table Table of headers for the chat
+
 local M = {}
 M.__index = M
 
@@ -58,6 +60,10 @@ function M.new(id, mediator)
   instance._augroup = vim.api.nvim_create_augroup("eca_sidebar_" .. id, { clear = true })
   instance._response_start_time = 0
   instance._max_response_length = 50000 -- 50KB max response
+  instance._headers = {
+    user = (Config.chat and Config.chat.headers and Config.chat.headers.user) or "## 👤 You\n\n",
+    assistant = (Config.chat and Config.chat.headers and Config.chat.headers.assistant) or "## 🤖 ECA\n\n",
+  }
 
   require("eca.observer").subscribe(id, function(message)
     instance:handle_chat_content(message)
@@ -874,6 +880,7 @@ function M:_set_welcome_content()
     "- **RepoMap**: Use `:EcaAddRepoMap` to add repository structure context",
     "",
     "---",
+    ""
   }
 
   Logger.debug("Setting welcome content for new chat")
@@ -1161,6 +1168,9 @@ function M:_send_message(message)
   -- Store the last user message to avoid duplication
   self._last_user_message = message
 
+  -- Add user message to chat
+  self:_add_message("user", message)
+
   local contexts = self:get_contexts()
   self.mediator:send("chat/prompt", {
     chatId = self.id,
@@ -1268,10 +1278,15 @@ end
 function M:_handle_streaming_text(text)
   -- Only check for empty text
   if not text or text == "" then
-    Logger.trace("Ignoring empty text response")
+    Logger.debug("Ignoring empty text response")
     return
   end
   Logger.debug("Received text chunk: '" .. text:sub(1, 50) .. (text:len() > 50 and "..." or "") .. "'")
+
+  if vim.trim(text) == vim.trim(self._last_user_message) then
+    Logger.debug("Ignoring duplicate user message in response")
+    return
+  end
 
   if not self._is_streaming then
     Logger.debug("Starting streaming response")
@@ -1311,10 +1326,13 @@ function M:_update_streaming_message(content)
     -- Make buffer modifiable
     vim.api.nvim_set_option_value("modifiable", true, { buf = chat.bufnr })
 
+    -- Concat content with header
+    content = self._headers.assistant .. content
+
     -- Get current lines
     local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
     local content_lines = Utils.split_lines(content)
-    local start_line = self._last_assistant_line + 2 -- Skip "## 🤖 ECA" and empty line
+    local start_line = self._last_assistant_line
 
     Logger.debug("DEBUG: Assistant line: " .. self._last_assistant_line .. ", start_line: " .. start_line)
     Logger.debug("DEBUG: Content lines: " .. #content_lines)
@@ -1359,22 +1377,16 @@ function M:_add_message(role, content)
 
   self:_safe_buffer_update(chat.bufnr, function()
     local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
+    local header = ""
 
-    -- Add separator if not the first message
-    if #lines > 0 and lines[#lines] ~= "" then
-      table.insert(lines, "")
-      table.insert(lines, "---")
-      table.insert(lines, "")
-    end
-
-    -- Add role header with better markdown formatting
     if role == "user" then
-      table.insert(lines, "## 👤 You")
-    else
-      table.insert(lines, "## 🤖 ECA")
+      header = self._headers.user
+    elseif role == "assistant" then
+      header = self._headers.assistant
     end
 
-    table.insert(lines, "")
+    -- Concat header and content
+    content = header .. content
 
     -- Add content with better markdown formatting
     local content_lines = Utils.split_lines(content)
@@ -1402,7 +1414,9 @@ function M:_add_message(role, content)
       end
     end
 
-    table.insert(lines, "")
+    if content ~= "" then
+      table.insert(lines, "")
+    end
 
     -- Update buffer safely
     vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
@@ -1461,8 +1475,19 @@ function M:_get_last_message_line()
   end
 
   local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
+  local assistant_header_lines = Utils.split_lines(self._headers.assistant)
+  local assistant_header = ""
+
+  for i = #assistant_header_lines, 1, -1 do
+    if assistant_header_lines[i] and assistant_header_lines[i] ~= "" then
+      assistant_header = assistant_header_lines[i]
+      break
+    end
+  end
+
   for i = #lines, 1, -1 do
-    if lines[i] and lines[i]:match("^## 🤖 ECA") then
+    local line = lines[i]
+    if line and line:sub(1, #assistant_header) == assistant_header then
       return i
     end
   end
