@@ -1,5 +1,14 @@
 ---@meta
 
+---@alias eca.ChatModel string
+---@alias eca.ChatBehavior 'agent'|'plan'
+---@class eca.ServerCapabilities
+---@field welcomeMessage string
+---@field models eca.ChatModel[]
+---@field defaultModel eca.ChatModel
+---@field behaviors eca.ChatBehavior[]
+---@field defaultBehavior eca.ChatBehavior
+
 ---@class eca.ChatContext
 ---@field type string
 ---@field path? string
@@ -9,7 +18,7 @@
 ---@field name? string
 ---@field description? string
 ---@field mimeType? string
----@field server string
+---@field server? string
 
 ---@class eca.ChatCommand
 ---@field name string
@@ -33,6 +42,19 @@
 ---@field linesAdded integer the count of lines added in this change
 ---@field linesRemoved integer the count of lines removed in this change
 
+---@class eca.ToolCallPrepare
+---@field type 'toolCallPrepare'
+---@field origin eca.ToolCallOrigin
+---@field id string the id of the tool call
+---@field name string name of the tool
+---@field argumentsText {[string]: string} arguments of the tool call
+---@field manualApproval boolean whether the call requires manual approval from the user
+---@field summary string  summary text to present about this tool call
+--- extra details for the call. clients may use this to present a different UX
+--- for this tool call.
+---@field details eca.ToolCallDetails
+---
+
 ---@class eca.ToolCallRun
 ---@field type 'toolCallRun'
 ---@field origin eca.ToolCallOrigin
@@ -41,16 +63,9 @@
 ---@field arguments {[string]: string} arguments of the tool call
 ---@field manualApproval boolean whether the call requires manual approval from the user
 ---@field summary string  summary text to present about this tool call
----@field details eca.ToolCallDetails extra details for the call. clients may use this to present a different UX for this tool call.
-
----@class eca.ToolCallRunning
----@field type 'toolCallRunning'
----@field origin eca.ToolCallOrigin
----@field id string the id of the tool call
----@field name string name of the tool
----@field arguments {[string]: string} arguments of the tool call
----@field summary? string  summary text to present about this tool call
----@field details? eca.ToolCallDetails extra details for the call. clients may use this to present a different UX for this tool call.
+--- extra details for the call. clients may use this to present a different UX
+--- for this tool call.
+---@field details eca.ToolCallDetails
 
 ---@class eca.ToolCalled
 ---@field type 'toolCalled'
@@ -61,3 +76,11 @@
 ---@field outputs {type: 'text', text: string}[] the result of the tool call
 ---@field summary? string summary text to present about the tool call
 ---@field details? eca.ToolCallDetails extra details about the call
+
+---@class eca.UsageContent
+---@field type 'usage'
+---@field messageInputTokens number
+---@field messageOutputTokens number
+---@field sessionTokens number
+---@field messageCost? string
+---@field sessionCost? string
