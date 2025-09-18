@@ -880,7 +880,7 @@ function M:_set_welcome_content()
     "- **RepoMap**: Use `:EcaAddRepoMap` to add repository structure context",
     "",
     "---",
-    ""
+    "",
   }
 
   Logger.debug("Setting welcome content for new chat")
@@ -1204,6 +1204,7 @@ function M:handle_chat_content_received(params)
   end
 
   local content = params.content
+  local chat_id = params.chatId
 
   if content.type == "text" then
     -- Handle streaming text content
@@ -1234,6 +1235,8 @@ function M:handle_chat_content_received(params)
     self:_handle_tool_call_prepare(content)
     -- IMPORTANT: Return immediately - do NOT display anything for toolCallPrepare
     return
+  elseif content.type == "toolCallRun" then
+    self:render_tool_call(content, chat_id)
   elseif content.type == "toolCallRunning" then
     -- Show the accumulated tool call
     self:_display_tool_call(content)
@@ -1271,6 +1274,16 @@ function M:handle_chat_content_received(params)
 
     -- Clean up tool call state
     self:_finalize_tool_call()
+  end
+end
+
+function M:render_tool_call(tool_content, chat_id)
+  if tool_content.type == "toolCallRun" and tool_content.manualApproval then
+    return require("eca.approve").approve_tool_call(tool_content, function()
+      self.mediator:send("chat/toolCallApprove", { chatId = chat_id, toolCallId = tool_content.id }, nil)
+    end, function()
+      self.mediator:send("chat/toolCallReject", { chatId = chat_id, toolCallId = tool_content.id }, nil)
+    end)
   end
 end
 
