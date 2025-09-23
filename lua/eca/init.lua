@@ -168,7 +168,7 @@ function M._init(id)
   local sidebar = M.sidebars[id]
 
   if not sidebar then
-    sidebar = Sidebar.new(id, M.mediator, M.server.capabilities)
+    sidebar = Sidebar.new(id, M.mediator)
     M.sidebars[id] = sidebar
   end
   M.current = { sidebar = sidebar }

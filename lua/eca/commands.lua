@@ -252,15 +252,17 @@ function M.setup()
 
   vim.api.nvim_create_user_command("EcaStopResponse", function()
     local eca = require("eca")
+    local Utils = require("eca.utils")
 
-    -- Note: Complex streaming management removed in simplified sidebar
+    -- Force stop any ongoing streaming response
     if eca.sidebar then
-      Logger.notify("Streaming management simplified in new ECA version", vim.log.levels.INFO)
+      eca.sidebar:_finalize_streaming_response()
+      Logger.notify("Forced stop of streaming response", vim.log.levels.INFO)
     else
       Logger.notify("No active sidebar to stop", vim.log.levels.WARN)
     end
   end, {
-    desc = "Emergency stop for infinite loops or runaway responses (simplified in new version)",
+    desc = "Emergency stop for infinite loops or runaway responses",
   })
 
   vim.api.nvim_create_user_command("EcaFixTreesitter", function()

@@ -33,7 +33,7 @@ function M.close()
   local eca = require("eca")
   local sidebar = eca.get()
   if sidebar then
-    sidebar:reset() -- This will reset the sidebar
+    sidebar:new_chat() -- This will reset and force welcome content on next open
   else
     eca.close_sidebar()
   end
@@ -49,7 +49,7 @@ function M.send_message(message)
   end
 
   if sidebar then
-    sidebar:send_prompt(message)
+    sidebar:_send_message(message)
   else
     Logger.notify("Could not open ECA sidebar", vim.log.levels.ERROR)
   end
@@ -58,7 +58,7 @@ end
 ---@param file_path string
 function M.add_file_context(file_path)
   Logger.info("Adding file context: " .. file_path)
-
+  
   local eca = require("eca")
 
   if not eca.server or not eca.server:is_running() then
@@ -151,8 +151,8 @@ function M.add_selection_context()
       path = context_path,
       lines_range = {
         start = start_line,
-        End = end_line,
-      },
+        End = end_line
+      }
     }
 
     -- Get current sidebar and add context
@@ -166,6 +166,17 @@ function M.add_selection_context()
 
     if sidebar then
       sidebar:add_context(context)
+
+      -- Also set as selected code for visual display
+      local selected_code = {
+        filepath = current_file,
+        content = selection_text,
+        start_line = start_line,
+        end_line = end_line,
+        filetype = vim.api.nvim_get_option_value("filetype", { buf = 0 }),
+      }
+      sidebar:set_selected_code(selected_code)
+
       Logger.info("Added selection context (" .. #lines .. " lines from lines " .. start_line .. "-" .. end_line .. ")")
     else
       Logger.notify("Failed to create ECA sidebar", vim.log.levels.ERROR)
@@ -292,45 +303,102 @@ function M.server_status()
 end
 
 -- ===== Selected Code Management =====
--- Note: Selected code functionality removed in simplified sidebar.
--- Selection is now handled through contexts only.
 
 function M.show_selected_code()
-  Logger.notify(
-    "Selected code display removed in simplified ECA. Use :EcaListContexts to see active contexts.",
-    vim.log.levels.INFO
-  )
+  local eca = require("eca")
+  local sidebar = eca.get()
+  if sidebar then
+    local selected_code = sidebar._selected_code
+    if selected_code then
+      Logger.notify(
+        "Selected code: "
+          .. selected_code.filepath
+          .. " (lines "
+          .. (selected_code.start_line or "?")
+          .. "-"
+          .. (selected_code.end_line or "?")
+          .. ")",
+        vim.log.levels.INFO
+      )
+    else
+      Logger.notify("No code currently selected", vim.log.levels.INFO)
+    end
+  else
+    Logger.notify("ECA sidebar not available", vim.log.levels.WARN)
+  end
 end
 
 function M.clear_selected_code()
-  Logger.notify(
-    "Selected code display removed in simplified ECA. Use :EcaClearContexts to clear contexts.",
-    vim.log.levels.INFO
-  )
+  local eca = require("eca")
+  local sidebar = eca.get()
+  if sidebar then
+    sidebar:clear_selected_code()
+  else
+    Logger.notify("ECA sidebar not available", vim.log.levels.WARN)
+  end
 end
 
 -- ===== TODOs Management =====
--- Note: TODO functionality removed in simplified sidebar.
--- TODOs should be managed server-side or through other mechanisms.
 
 function M.add_todo(content)
-  Logger.notify(
-    "TODO functionality removed in simplified ECA. Consider using server-side task management.",
-    vim.log.levels.INFO
-  )
+  local eca = require("eca")
+  local sidebar = eca.get()
+  if not sidebar then
+    Logger.info("Opening ECA sidebar to add TODO...")
+    M.chat()
+    sidebar = eca.get()
+  end
+
+  if sidebar then
+    local todo = {
+      content = content,
+      status = "pending",
+    }
+    sidebar:add_todo(todo)
+  else
+    Logger.notify("Failed to create ECA sidebar", vim.log.levels.ERROR)
+  end
 end
 
 function M.list_todos()
-  Logger.notify("TODO functionality removed in simplified ECA.", vim.log.levels.INFO)
+  local eca = require("eca")
+  local sidebar = eca.get()
+  if sidebar then
+    local todos = sidebar:get_todos()
+    if #todos == 0 then
+      Logger.notify("No active TODOs", vim.log.levels.INFO)
+      return
+    end
+
+    Logger.notify("Active TODOs:", vim.log.levels.INFO)
+    for i, todo in ipairs(todos) do
+      local status_icon = todo.status == "completed" and "✓" or "○"
+      Logger.notify(string.format("%d. %s %s", i, status_icon, todo.content), vim.log.levels.INFO)
+    end
+  else
+    Logger.notify("ECA sidebar not available", vim.log.levels.WARN)
+  end
 end
 
 function M.toggle_todo(index)
-  Logger.notify("TODO functionality removed in simplified ECA.", vim.log.levels.INFO)
-  return false
+  local eca = require("eca")
+  local sidebar = eca.get()
+  if sidebar then
+    return sidebar:toggle_todo(index)
+  else
+    Logger.notify("ECA sidebar not available", vim.log.levels.WARN)
+    return false
+  end
 end
 
 function M.clear_todos()
-  Logger.notify("TODO functionality removed in simplified ECA.", vim.log.levels.INFO)
+  local eca = require("eca")
+  local sidebar = eca.get()
+  if sidebar then
+    sidebar:clear_todos()
+  else
+    Logger.notify("ECA sidebar not available", vim.log.levels.WARN)
+  end
 end
 
 -- Keep reference to logs popup globally to reuse it
