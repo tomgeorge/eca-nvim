@@ -46,7 +46,7 @@ T["Chat"]["new"] = function()
   eq(chat.ui.windows.chat.win, nil)
 
   local mappings = child.api.nvim_buf_get_keymap(chat.ui.windows.input.buf, "n")
-  eq(mappings[1].desc, "Close chat window")
+  eq(mappings[1].desc, "Toggle usage view")
 end
 
 T["Chat"]["push"] = function()
@@ -127,6 +127,16 @@ T["Chat"]["toggle context"] = function()
   local input_config = child.api.nvim_win_get_config(chat.ui.windows.input.win)
   eq(input_config.height, 10)
   eq(child.api.nvim_get_option_value("winfixheight", { win = chat.ui.windows.input.win }), true)
+  local screenshot = child.get_screenshot()
+  MiniTest.expect.reference_screenshot(screenshot, nil, {})
+end
+
+T["Chat"]["toggle usage"] = function()
+  local chat = child.lua([[
+    chat:open()
+    chat:toggle_usage()
+    return chat
+  ]])
   local screenshot = child.get_screenshot()
   MiniTest.expect.reference_screenshot(screenshot, nil, {})
 end

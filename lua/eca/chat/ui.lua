@@ -89,7 +89,9 @@ local default_windows = {
       width = math.floor(gwidth * default_size),
       split = "below",
     },
-    win_options = {},
+    win_options = {
+      winfixheight = true,
+    },
     buf_options = {
       filetype = "eca_context",
     },
@@ -288,6 +290,15 @@ function UI:toggle_context()
     self.windows.context.win = nil
   else
     open_win(self.windows.context, self.windows.chat.win)
+  end
+end
+
+function UI:toggle_usage()
+  if win_is_open(self.windows.usage) then
+    vim.api.nvim_win_close(self.windows.usage.win, true)
+    self.windows.usage.win = nil
+  else
+    open_win(self.windows.usage, self.windows.input.win)
   end
 end
 

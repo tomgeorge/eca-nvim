@@ -24,13 +24,16 @@ local function make_buffer_mappings(chat)
   for _, window in pairs(chat.ui.windows) do
     buf_map(window.buf, chat.mappings.close[1], function()
       chat:close()
-    end, "Close chat window")
+    end, chat.mappings.close[2])
     buf_map(window.buf, chat.mappings.toggle_context[1], function()
       chat:toggle_context()
-    end, "Close chat window")
+    end, chat.mappings.toggle_context[2])
     buf_map(window.buf, chat.mappings.open_help[1], function()
       chat:open_help()
-    end, "Open chat help")
+    end, chat.mappings.open_help[2])
+    buf_map(window.buf, chat.mappings.toggle_usage[1], function()
+      chat:toggle_usage()
+    end, chat.mappings.toggle_usage[2])
   end
 end
 
@@ -86,6 +89,10 @@ end
 
 function Chat:toggle_context()
   self.ui:toggle_context()
+end
+
+function Chat:toggle_usage()
+  self.ui:toggle_usage()
 end
 
 return Chat
