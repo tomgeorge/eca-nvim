@@ -9,6 +9,8 @@
 local Chat = {}
 
 local default_mappings = {
+  toggle_context = { "<leader>ct", "Toggle context view" },
+  toggle_usage = { "<leader>ut", "Toggle usage view" },
   close = { "<leader>ax", "Close chat window" },
   open_help = { "g?", "Show help" },
 }
@@ -22,6 +24,9 @@ local function make_buffer_mappings(chat)
   for _, window in pairs(chat.ui.windows) do
     buf_map(window.buf, chat.mappings.close[1], function()
       chat:close()
+    end, "Close chat window")
+    buf_map(window.buf, chat.mappings.toggle_context[1], function()
+      chat:toggle_context()
     end, "Close chat window")
     buf_map(window.buf, chat.mappings.open_help[1], function()
       chat:open_help()
@@ -77,6 +82,10 @@ end
 
 function Chat:open_help()
   self.ui:open_help(self.mappings)
+end
+
+function Chat:toggle_context()
+  self.ui:toggle_context()
 end
 
 return Chat

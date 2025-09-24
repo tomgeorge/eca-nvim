@@ -26,6 +26,9 @@ local function open_win(window, relative_win)
     for option, value in pairs(window.buf_options) do
       vim.api.nvim_set_option_value(option, value, { buf = window.buf })
     end
+    for option, value in pairs(window.win_options) do
+      vim.api.nvim_set_option_value(option, value, { win = window.win })
+    end
     if window.name ~= "Help" then
       vim.api.nvim_buf_set_name(window.buf, window.name)
     end
@@ -71,7 +74,9 @@ local default_windows = {
       width = math.floor(gwidth * default_size),
       split = "below",
     },
-    win_options = {},
+    win_options = {
+      winfixheight = true,
+    },
     buf_options = {
       filetype = "eca_input",
     },
@@ -266,6 +271,24 @@ function UI:open_help(mappings)
     nowait = true,
     silent = true,
   })
+end
+
+---@param window eca.ChatWindowConfiguration
+---@return boolean
+local function win_is_open(window)
+  if not window.win then
+    return false
+  end
+  return vim.api.nvim_win_is_valid(window.win)
+end
+
+function UI:toggle_context()
+  if win_is_open(self.windows.context) then
+    vim.api.nvim_win_close(self.windows.context.win, true)
+    self.windows.context.win = nil
+  else
+    open_win(self.windows.context, self.windows.chat.win)
+  end
 end
 
 return UI

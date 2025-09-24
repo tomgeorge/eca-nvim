@@ -106,13 +106,28 @@ T["Chat"]["help"] = function()
   local lines = child.api.nvim_buf_get_lines(help_buf, 0, -1, false)
   local screenshot = child.get_screenshot()
   local expected = {
-    "Close chat window │ <leader>ax",
-    "Show help         │ g?",
+    "Close chat window   │ <leader>ax",
+    "Show help           │ g?",
+    "Toggle context view │ <leader>ct",
+    "Toggle usage view   │ <leader>ut",
     "",
     "(Press `q` to close)",
   }
 
   eq(lines, expected)
+  MiniTest.expect.reference_screenshot(screenshot, nil, {})
+end
+
+T["Chat"]["toggle context"] = function()
+  local chat = child.lua([[
+    chat:open()
+    chat:toggle_context()
+    return chat
+  ]])
+  local input_config = child.api.nvim_win_get_config(chat.ui.windows.input.win)
+  eq(input_config.height, 10)
+  eq(child.api.nvim_get_option_value("winfixheight", { win = chat.ui.windows.input.win }), true)
+  local screenshot = child.get_screenshot()
   MiniTest.expect.reference_screenshot(screenshot, nil, {})
 end
 
