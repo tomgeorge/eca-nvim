@@ -141,4 +141,26 @@ T["Chat"]["toggle usage"] = function()
   MiniTest.expect.reference_screenshot(screenshot, nil, {})
 end
 
+T["Chat"]["mappings can be overridden"] = function()
+  local chat = child.lua([[
+    require("eca.chat").new({
+      mappings = {
+        close = "<Leader>x",
+        toggle_context = "ccc"
+      }
+    })
+    chat:open_help()
+    return chat
+  ]])
+  local lines = child.api.nvim_buf_get_lines(chat.ui.windows.help.buf, 0, -1, false)
+  eq(lines, {
+    "Close chat window   │ <Leader>x",
+    "Show help           │ g?",
+    "Toggle context view │ ccc",
+    "Toggle usage view   │ <leader>ut",
+    "",
+    "(Press `q` to close)",
+  })
+end
+
 return T

@@ -64,6 +64,7 @@ local default_windows = {
     win_options = {},
     buf_options = {
       filetype = "markdown",
+      modifiable = false,
     },
   },
   input = {
@@ -106,6 +107,7 @@ local default_windows = {
     },
     win_options = {},
     buf_options = {
+      modifiable = false,
       filetype = "eca_usage",
     },
   },
@@ -175,7 +177,9 @@ function UI:render(state)
     vim.api.nvim_buf_set_lines(self.windows.context.buf, 0, -1, false, render_contexts(state.contexts))
   end
   local _ = require("eca.highlights")
+  vim.api.nvim_set_option_value("modifiable", true, { buf = self.windows.chat.buf })
   vim.api.nvim_buf_set_lines(self.windows.chat.buf, 0, -1, false, state.messages)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = self.windows.chat.buf })
 end
 
 ---@param message eca.UIMessage

@@ -37,6 +37,18 @@ local function make_buffer_mappings(chat)
   end
 end
 
+--- Override default mappings
+--- We need a special function here because we store the mappings as a tuple of
+--- mapping and description. Users should not need to pass in this tuple, as
+--- they aren't changing the description, only the mapping
+local function override_mappings(mappings)
+  local m = default_mappings
+  for k, mapping in pairs(mappings) do
+    m[k][1] = mapping
+  end
+  return m
+end
+
 ---@class eca.ChatOpts
 ---@field id number
 ---@field ui eca.ChatUIOpts
@@ -49,14 +61,13 @@ function Chat.new(opts)
     ui = {},
     id = math.random(1000, 9999),
     title = "",
-    mappings = default_mappings,
   }, opts or {})
 
   local ui = require("eca.chat.ui").new(opts.id, opts.ui)
   local self = setmetatable({
     id = opts.id,
     ui = ui,
-    mappings = opts.mappings,
+    mappings = override_mappings(opts.mappings or {}),
     messages = {},
     contexts = { { type = "repoMap" } },
     help = opts.help,
