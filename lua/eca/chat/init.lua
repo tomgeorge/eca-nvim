@@ -3,16 +3,31 @@
 ---@field title string LLM-generated summary of the discussion
 ---@field contexts eca.ChatContext[] the contexts for the chat
 ---@field messages string[] chat messages from the server
----@field mappings table<string, string>
+---TODO: better type
+---@field mappings table<string, table<string, string>>
 ---@field ui eca.ChatUI the ui provider for the chat
 local Chat = {}
 
 local default_mappings = {
-  close = "<leader>ax",
+  close = { "<leader>ax", "Close chat window" },
+  open_help = { "g?", "Show help" },
 }
 
----@param windows eca.ChatUIWindows
-local function make_buffer_mappings(_) end
+---@param chat eca.Chat
+local function make_buffer_mappings(chat)
+  local function buf_map(buf, lhs, rhs, desc)
+    vim.keymap.set("n", lhs, rhs, { buffer = buf, desc = desc, silent = true })
+  end
+
+  for _, window in pairs(chat.ui.windows) do
+    buf_map(window.buf, chat.mappings.close[1], function()
+      chat:close()
+    end, "Close chat window")
+    buf_map(window.buf, chat.mappings.open_help[1], function()
+      chat:open_help()
+    end, "Open chat help")
+  end
+end
 
 ---@class eca.ChatOpts
 ---@field id number
@@ -30,15 +45,16 @@ function Chat.new(opts)
   }, opts or {})
 
   local ui = require("eca.chat.ui").new(opts.id, opts.ui)
-
-  return setmetatable({
+  local self = setmetatable({
     id = opts.id,
-    ui = require("eca.chat.ui").new(opts.id, opts.ui),
+    ui = ui,
     mappings = opts.mappings,
     messages = {},
     contexts = { { type = "repoMap" } },
     help = opts.help,
   }, { __index = Chat })
+  make_buffer_mappings(self)
+  return self
 end
 
 ---@param message string

@@ -44,6 +44,9 @@ T["Chat"]["new"] = function()
   eq(chat.ui.id, 5)
   eq(chat.ui.windows.chat.buf, 3)
   eq(chat.ui.windows.chat.win, nil)
+
+  local mappings = child.api.nvim_buf_get_keymap(chat.ui.windows.input.buf, "n")
+  eq(mappings[1].desc, "Close chat window")
 end
 
 T["Chat"]["push"] = function()
@@ -94,19 +97,23 @@ T["Chat"]["close"] = function()
 end
 
 T["Chat"]["help"] = function()
-  local help_buf = child.lua_get("chat.ui.windows.help.buf")
   local chat = child.lua([[
     chat:open_help()
     return chat
   ]])
 
+  local help_buf = child.lua_get("chat.ui.windows.help.buf")
+  local lines = child.api.nvim_buf_get_lines(help_buf, 0, -1, false)
   local screenshot = child.get_screenshot()
-  local want = {
-    "<Leader>ax - Close chat window",
+  local expected = {
+    "Close chat window │ <leader>ax",
+    "Show help         │ g?",
     "",
-    "Press q to close",
+    "(Press `q` to close)",
   }
-  eq(want, child.api.nvim_buf_get_lines(help_buf, 0, -1, false))
+
+  eq(lines, expected)
+  MiniTest.expect.reference_screenshot(screenshot, nil, {})
 end
 
 return T
