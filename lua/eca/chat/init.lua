@@ -1,19 +1,31 @@
----@class eca.Chat
----@field id number the chat id
----@field title string LLM-generated summary of the discussion
----@field contexts eca.ChatContext[] the contexts for the chat
----@field messages string[] chat messages from the server
----TODO: better type
----@field mappings table<string, table<string, string>>
----@field ui eca.ChatUI the ui provider for the chat
-local Chat = {}
+--- tuple of keymap, description
+---@alias eca.ChatKeymapSpec [string, string]
 
+--- mappings are tuples of keymaps and description
+---@class eca.ChatKeymaps
+---@field close eca.ChatKeymapSpec
+---@field open_help eca.ChatKeymapSpec
+---@field toggle_context eca.ChatKeymapSpec
+---@field toggle_usage eca.ChatKeymapSpec
+
+---@type eca.ChatKeymaps
 local default_mappings = {
   toggle_context = { "<leader>ct", "Toggle context view" },
   toggle_usage = { "<leader>ut", "Toggle usage view" },
   close = { "<leader>ax", "Close chat window" },
   open_help = { "g?", "Show help" },
 }
+
+---@alias eca.UserKeymapOverrides {[string]: string}
+
+---@class eca.Chat
+---@field id number the chat id
+---@field title string LLM-generated summary of the discussion
+---@field contexts eca.ChatContext[] the contexts for the chat
+---@field messages string[] chat messages from the server
+---@field mappings eca.ChatKeymaps
+---@field ui eca.ChatUI the ui provider for the chat
+local Chat = {}
 
 ---@param chat eca.Chat
 local function make_buffer_mappings(chat)
@@ -41,6 +53,7 @@ end
 --- We need a special function here because we store the mappings as a tuple of
 --- mapping and description. Users should not need to pass in this tuple, as
 --- they aren't changing the description, only the mapping
+--- @param mappings eca.UserKeymapOverrides
 local function override_mappings(mappings)
   local m = default_mappings
   for k, mapping in pairs(mappings) do

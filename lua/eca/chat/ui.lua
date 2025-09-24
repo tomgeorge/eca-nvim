@@ -223,8 +223,7 @@ function UI:is_open()
   return false
 end
 
---- TODO: better type
---- @param mappings table<string, table<string, string>>
+--- @param mappings eca.ChatKeymaps
 function UI:open_help(mappings)
   local map_data, desc_width = {}, 0
 
