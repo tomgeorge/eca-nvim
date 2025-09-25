@@ -14,18 +14,6 @@ end
 
 local T = MiniTest.new_set({
   hooks = {
-    pre_case = function()
-      child.restart({ "-u", "scripts/minimal_init.lua" })
-      child.lua([[
-        chat = require("eca.chat").new()
-      ]])
-    end,
-    post_once = child.stop,
-  },
-})
-
-T["integration"] = MiniTest.new_set({
-  hooks = {
     post_once = child.stop,
     post_case = cleanup_test_files,
     pre_case = function()
@@ -48,18 +36,21 @@ T["integration"] = MiniTest.new_set({
             },
           },
         })
+        require("mini.test").expect.equality(_G.did_mediator, 1)
       ]])
     end,
   },
 })
+
+T["integration"] = MiniTest.new_set()
 
 T["integration"]["respects mappings"] = function()
   child.type_keys(200, " ec", "g?")
   local screenshot = child.get_screenshot()
   MiniTest.expect.reference_screenshot(screenshot, nil, {})
   ---@type eca.Chat
-  local chat = child.lua_get("_G.chats[1]")
-  eq(chat.mappings.close, { "<Leader>cl", "Close chat window" })
+  local close_mapping = child.lua_get("_G.chats[1].mappings.close")
+  eq(close_mapping, { "<Leader>cl", "Close chat window" })
 end
 
 T["integration"]["runs a command"] = function()
@@ -67,8 +58,8 @@ T["integration"]["runs a command"] = function()
   local screenshot = child.get_screenshot()
   MiniTest.expect.reference_screenshot(screenshot, nil, {})
 
-  local chat = child.lua_get("_G.chats[1]")
-  eq(child.api.nvim_buf_get_lines(chat.ui.windows.chat.buf, 0, -1, false), { "Hi" })
+  local chat_buf = child.lua_get("_G.chats[1].ui.windows.chat.buf")
+  eq(child.api.nvim_buf_get_lines(chat_buf, 0, -1, false), { "Hi" })
 end
 
 return T
