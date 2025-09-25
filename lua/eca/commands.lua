@@ -157,6 +157,52 @@ function M.setup()
     desc = "Restart ECA server",
   })
 
+  vim.api.nvim_create_user_command("EcaServerMessages", function()
+    local has_snacks, snacks = pcall(require, "snacks")
+    if not has_snacks then
+      Logger.notify("snacks.nvim is not available", vim.log.levels.ERROR)
+      return
+    end
+
+    snacks.picker(
+      ---@type snacks.picker.Config
+      {
+        source = "eca messages",
+        finder = function(opts, ctx)
+          ---@type snacks.picker.finder.Item[]
+          local items = {}
+          local eca = require("eca")
+          if not eca or not eca.server then
+            Logger.notify("ECA plugin is not available", vim.log.levels.ERROR)
+            return items
+          end
+
+          for msg in vim.iter(eca.server.messages) do
+            print(msg)
+            local decoded = vim.json.decode(msg.content)
+            table.insert(items, {
+              text = decoded.method,
+              idx = decoded.id,
+              preview = {
+                text = vim.inspect(decoded),
+                ft = "lua",
+              },
+            })
+          end
+          return items
+        end,
+        preview = "preview",
+        format = "text",
+        confirm = function(self, item, _)
+          vim.fn.setreg("", item.preview.text)
+          self:close()
+        end,
+      }
+    )
+  end, {
+    desc = "Display Messages Sent to and Received by ECA server",
+  })
+
   vim.api.nvim_create_user_command("EcaLogs", function(opts)
     local Api = require("eca.api")
     local subcommand = opts.args and opts.args:match("%S+") or "show"
