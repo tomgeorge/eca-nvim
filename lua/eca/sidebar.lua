@@ -1086,12 +1086,26 @@ function M:_update_config_display()
 
   local model = self.mediator:selected_model() or "unknown"
   local behavior = self.mediator:selected_behavior() or "unknown"
-  local mcps = vim.tbl_count(self.mediator:mcps())
+  local mcps = self.mediator:mcps()
+
+  local mcps_hl = "Normal"
+
+  for _, mcp in pairs(mcps) do
+    if mcp.status == "starting" then
+      mcps_hl = "Comment"
+      break
+    end
+
+    if mcp.status == "failed" then
+      mcps_hl = "Exception"
+      break
+    end
+  end
 
   local texts = {
     { "model:",    "Comment" }, { model, "Normal" }, { "\t" },
     { "behavior:", "Comment" }, { behavior, "Normal" }, { " " },
-    { "mcps:", "Comment" }, { tostring(mcps), "Exception" },
+    { "mcps:", "Comment" }, { tostring(vim.tbl_count(mcps)), mcps_hl },
   }
 
   local virt_opts = { virt_text = texts, hl_mode = "combine" }
@@ -1188,7 +1202,7 @@ function M:_update_usage_info()
     -1,
     vim.tbl_extend("force",
       {
-        virt_text = { { self._current_status, (status_text ~= "Idle") and "Question" or "Normal" } },
+        virt_text = { { self._current_status, (status_text ~= "Idle") and "Debug" or "Normal" } },
         virt_text_pos = 'eol',
         hl_mode = 'combine',
       },
