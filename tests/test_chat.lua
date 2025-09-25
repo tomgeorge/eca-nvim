@@ -9,7 +9,9 @@ local T = MiniTest.new_set({
     pre_case = function()
       child.restart({ "-u", "scripts/minimal_init.lua" })
       child.lua([[
-        chat = require("eca.chat").new()
+        server = require("tests.mock.server").new()
+        mediator = require("eca.mediator").new(server)
+        chat = require("eca.chat").new({mediator = mediator})
       ]])
     end,
     post_once = child.stop,
@@ -36,7 +38,8 @@ T["Chat"]["new"] = function()
 
   chat = child.lua(
     [[
-    chat = require("eca.chat").new(...)
+    opts = vim.tbl_deep_extend("keep", {mediator = mediator}, ...)
+    chat = require("eca.chat").new(opts)
     return chat
   ]],
     { opts }
@@ -45,9 +48,6 @@ T["Chat"]["new"] = function()
   eq(chat.ui.id, 5)
   eq(chat.ui.windows.chat.buf, 3)
   eq(chat.ui.windows.chat.win, nil)
-
-  local mappings = child.api.nvim_buf_get_keymap(chat.ui.windows.input.buf, "n")
-  eq(mappings[1].desc, "Toggle usage view")
 end
 
 T["Chat"]["push"] = function()
@@ -107,10 +107,11 @@ T["Chat"]["help"] = function()
   local lines = child.api.nvim_buf_get_lines(help_buf, 0, -1, false)
   local screenshot = child.get_screenshot()
   local expected = {
-    "Close chat window   │ <leader>ax",
-    "Show help           │ g?",
-    "Toggle context view │ <leader>ct",
-    "Toggle usage view   │ <leader>ut",
+    "Close chat window         │ <leader>ax",
+    "Show help                 │ g?",
+    "Show server configuration │ <leader>ei",
+    "Toggle context view       │ <leader>ct",
+    "Toggle usage view         │ <leader>ut",
     "",
     "(Press `q` to close)",
   }
@@ -142,26 +143,49 @@ T["Chat"]["toggle usage"] = function()
   MiniTest.expect.reference_screenshot(screenshot, nil, {})
 end
 
-T["Chat"]["mappings can be overridden"] = function()
+T["Chat"]["server info waiting"] = function()
   local chat = child.lua([[
-    require("eca.chat").new({
-      mappings = {
-        close = "<Leader>x",
-        toggle_context = "ccc"
-      }
-    })
-    chat:open_help()
+    chat:open()
+    chat:open_info()
     return chat
   ]])
-  local lines = child.api.nvim_buf_get_lines(chat.ui.windows.help.buf, 0, -1, false)
+  local lines = child.api.nvim_buf_get_lines(chat.ui.windows.info.buf, 0, -1, false)
   eq(lines, {
-    "Close chat window   │ <Leader>x",
-    "Show help           │ g?",
-    "Toggle context view │ ccc",
-    "Toggle usage view   │ <leader>ut",
+    "Waiting for server information",
+    "",
+    "Press 'q' to close",
+  })
+  local screenshot = child.get_screenshot()
+  MiniTest.expect.reference_screenshot(screenshot, nil, {})
+end
+
+T["Chat"]["mappings can be overridden"] = function()
+  local opts = {
+    mappings = {
+      close = "<Leader>xx",
+      toggle_context = "ccc",
+    },
+  }
+  local chat = child.lua(
+    [[
+    opts = vim.tbl_deep_extend("keep", { mediator = mediator}, ...)
+    require("eca.chat").new(opts)
+    chat:open_help()
+    return chat
+  ]],
+    { opts }
+  )
+  local lines = child.api.nvim_buf_get_lines(chat.ui.windows.help.buf, 0, -1, false)
+  local expected = {
+    "Close chat window         │ <Leader>xx",
+    "Show help                 │ g?",
+    "Show server configuration │ <leader>ei",
+    "Toggle context view       │ ccc",
+    "Toggle usage view         │ <leader>ut",
     "",
     "(Press `q` to close)",
-  })
+  }
+  eq(lines, expected)
 end
 
 return T
