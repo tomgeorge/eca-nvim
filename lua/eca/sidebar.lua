@@ -1206,7 +1206,7 @@ function M:_update_usage_info()
         virt_text_pos = 'eol',
         hl_mode = 'combine',
       },
-      { id = self.extmarks.config._id_status })
+      { id = self.extmarks.usage._id_status })
   )
 
   self.extmarks.usage._id_usage = vim.api.nvim_buf_set_extmark(
@@ -1220,7 +1220,7 @@ function M:_update_usage_info()
         virt_text_pos = 'right_align',
         hl_mode = 'combine',
       },
-      { id = self.extmarks.config._id_usage })
+      { id = self.extmarks.usage._id_usage })
   )
 end
 
