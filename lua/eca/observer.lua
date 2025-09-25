@@ -1,9 +1,9 @@
 local observer = {}
 
----@type { [integer]: fun(message: table) }
+---@type { [string]: fun(message: table) }
 local subscriptions = {}
 
----@param id integer
+---@param id string
 ---@param on_update fun(message: table)
 function observer.subscribe(id, on_update)
   subscriptions[id] = on_update

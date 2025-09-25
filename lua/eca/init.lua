@@ -242,8 +242,9 @@ function M.setup(opts)
   H.signs()
 
   -- Initialize the ECA server with callbacks
+  M.state = require("eca.state").new()
   M.server = Server.new()
-  M.mediator = require("eca.mediator").new(M.server)
+  M.mediator = require("eca.mediator").new(M.server, M.state)
   -- Start server automatically in background
   vim.defer_fn(function()
     M.server:start()

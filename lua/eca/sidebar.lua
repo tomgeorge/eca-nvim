@@ -31,10 +31,7 @@ local M = {}
 M.__index = M
 
 -- Height calculation constants
-local MIN_CHAT_HEIGHT = 10 -- Minimum lines for chat container to remain usable
-local WINDOW_MARGIN = 3 -- Additional margin for window borders and spacing
 local UI_ELEMENTS_HEIGHT = 2 -- Reserve space for statusline and tabline
-local SAFETY_MARGIN = 2 -- Extra margin to prevent "Not enough room" errors
 
 ---@param id integer Tab ID
 ---@param mediator eca.Mediator
@@ -44,6 +41,7 @@ function M.new(id, mediator)
   instance.id = id
   instance.mediator = mediator
   instance.containers = {}
+  instance.extmarks = {}
   instance._initialized = false
   instance._current_response_buffer = ""
   instance._is_streaming = false
@@ -65,7 +63,7 @@ function M.new(id, mediator)
     assistant = (Config.chat and Config.chat.headers and Config.chat.headers.assistant) or "## 🤖 ECA\n\n",
   }
 
-  require("eca.observer").subscribe(id, function(message)
+  require("eca.observer").subscribe("sidebar-" .. id, function(message)
     instance:handle_chat_content(message)
   end)
   return instance
@@ -228,15 +226,11 @@ function M:_create_containers()
   local todos_height = self:get_todos_height()
   local original_chat_height = self:get_chat_height()
   local chat_height = original_chat_height
+  local config_height = 1
 
   -- Validate total height to prevent "Not enough room" error
   local total_height = chat_height
-    + selected_code_height
-    + todos_height
-    + status_height
-    + contexts_height
-    + input_height
-    + usage_height
+    + config_height
 
   -- Always calculate from total screen minus UI elements (more accurate than current window)
   local available_height = vim.o.lines - UI_ELEMENTS_HEIGHT
@@ -293,7 +287,26 @@ function M:_create_containers()
   local current_winid = self.containers.chat.winid
   Logger.debug("Mounted container: chat (winid: " .. current_winid .. ")")
 
-  -- 2. Create selected_code container (conditional)
+  --2. Create config container in top of chat
+  self.containers.config = Split({
+    relative = {
+      type = "win",
+      winid = current_winid,
+    },
+    position = "top",
+    size = { height = config_height },
+    buf_options = vim.tbl_deep_extend("force", base_buf_options, {
+      modifiable = false,
+    }),
+    win_options = vim.tbl_deep_extend("force", base_win_options, {
+      winhighlight = "Normal:Normal",
+    }),
+  })
+  self.containers.config:mount()
+  self:_setup_container_events(self.containers.config, "config")
+  Logger.debug("Mounted container: config (winid: " .. self.containers.config.winid .. ")")
+
+  -- 3. Create selected_code container (conditional)
   if selected_code_height > 0 then
     self.containers.selected_code = Split({
       relative = {
@@ -316,7 +329,7 @@ function M:_create_containers()
     Logger.debug("Mounted container: selected_code (winid: " .. current_winid .. ")")
   end
 
-  -- 3. Create todos container (conditional)
+  -- 4. Create todos container (conditional)
   if todos_height > 0 then
     self.containers.todos = Split({
       relative = {
@@ -338,27 +351,7 @@ function M:_create_containers()
     Logger.debug("Mounted container: todos (winid: " .. current_winid .. ")")
   end
 
-  -- 4. Create status container (always present) - for processing messages
-  self.containers.status = Split({
-    relative = {
-      type = "win",
-      winid = current_winid,
-    },
-    position = "bottom",
-    size = { height = status_height },
-    buf_options = vim.tbl_deep_extend("force", base_buf_options, {
-      modifiable = false,
-    }),
-    win_options = vim.tbl_deep_extend("force", base_win_options, {
-      winhighlight = "Normal:WarningMsg",
-    }),
-  })
-  self.containers.status:mount()
-  self:_setup_container_events(self.containers.status, "status")
-  current_winid = self.containers.status.winid
-  Logger.debug("Mounted container: status (winid: " .. current_winid .. ")")
-
-  -- 5. Create contexts container between status and input
+  -- 5. Create contexts container between chat and input
   self.containers.contexts = Split({
     relative = {
       type = "win",
@@ -378,7 +371,7 @@ function M:_create_containers()
   current_winid = self.containers.contexts.winid
   Logger.debug("Mounted container: contexts (winid: " .. current_winid .. ")")
 
-  -- 6. Create input container (always present)
+  --6. Create input container (always present)
   self.containers.input = Split({
     relative = {
       type = "win",
@@ -405,13 +398,14 @@ function M:_create_containers()
       type = "win",
       winid = current_winid,
     },
+    enter = false,
     position = "bottom",
     size = { height = usage_height },
     buf_options = vim.tbl_deep_extend("force", base_buf_options, {
       modifiable = false,
     }),
     win_options = vim.tbl_deep_extend("force", base_win_options, {
-      winhighlight = "Normal:StatusLine",
+      winhighlight = "Normal:Comment",
       statusline = " ",
     }),
   })
@@ -421,14 +415,15 @@ function M:_create_containers()
 
   Logger.debug(
     string.format(
-      "Created containers: contexts=%d, chat=%d, selected_code=%s, todos=%s, status=%d, input=%d, usage=%d",
+      "Created containers: contexts=%d, chat=%d, selected_code=%s, todos=%s, status=%d, input=%d, usage=%d, config=%d",
       contexts_height,
       chat_height,
       selected_code_height > 0 and tostring(selected_code_height) or "hidden",
       todos_height > 0 and tostring(todos_height) or "hidden",
       status_height,
       input_height,
-      usage_height
+      usage_height,
+      config_height
     )
   )
 end
@@ -567,17 +562,12 @@ function M:get_chat_height()
   local contexts_height = self:get_contexts_height()
   local selected_code_height = self:get_selected_code_height()
   local todos_height = self:get_todos_height()
+  local config_height = 1
 
   return math.max(
     MIN_CHAT_HEIGHT,
     total_height
-      - input_height
-      - usage_height
-      - status_height
-      - contexts_height
-      - selected_code_height
-      - todos_height
-      - WINDOW_MARGIN
+      - config_height
   )
 end
 
@@ -696,7 +686,7 @@ function M:_setup_containers()
     self:_setup_todos_container()
   end
 
-  self:_setup_status_container()
+  self:_update_config_display()
   self:_setup_input_container()
   self:_setup_usage_container()
 
@@ -713,6 +703,10 @@ function M:_refresh_container_content()
     self:_set_welcome_content()
   end
 
+  if self.containers.config then
+    self:_update_config_display()
+  end
+
   if self.containers.selected_code then
     self:_update_selected_code_display()
   end
@@ -721,16 +715,22 @@ function M:_refresh_container_content()
     self:_update_todos_display()
   end
 
-  if self.containers.status then
-    self:_update_status_display()
-  end
-
   if self.containers.input then
     self:_add_input_line()
   end
 
   if self.containers.usage then
-    self:_update_usage_info(self._usage_info)
+    self:_update_usage_info()
+  end
+end
+
+function M:_handle_state_updated(state)
+  if state.usage or state.status then
+    self:_update_usage_info()
+  end
+
+  if state.config or state.tools then
+    self:_update_config_display()
   end
 end
 
@@ -799,16 +799,6 @@ function M:_setup_contexts_container()
   self:_update_contexts_display()
 end
 
-function M:_setup_status_container()
-  local status = self.containers.status
-  if not status then
-    return
-  end
-
-  -- Set initial status display
-  self:_update_status_display()
-end
-
 function M:_setup_usage_container()
   local usage = self.containers.usage
   if not usage then
@@ -816,9 +806,7 @@ function M:_setup_usage_container()
   end
 
   -- Set initial usage info
-  vim.api.nvim_set_option_value("modifiable", true, { buf = usage.bufnr })
-  vim.api.nvim_buf_set_lines(usage.bufnr, 0, -1, false, { "Usage: Tokens | Cost" })
-  vim.api.nvim_set_option_value("modifiable", false, { buf = usage.bufnr })
+  self:_update_usage_info()
 end
 
 function M:_setup_input_container()
@@ -1074,6 +1062,41 @@ function M:_update_todos_display()
   vim.api.nvim_set_option_value("modifiable", false, { buf = container.bufnr })
 end
 
+function M:_update_config_display()
+  local config = self.containers.config
+  if not config or not vim.api.nvim_buf_is_valid(config.bufnr) then
+    return
+  end
+
+  local model = self.mediator:selected_model() or "unknown"
+  local behavior = self.mediator:selected_behavior() or "unknown"
+  local mcps = vim.tbl_count(self.mediator:mcps())
+
+  local texts = {
+    { "model:",    "Comment" }, { model, "Normal" }, { "\t" },
+    { "behavior:", "Comment" }, { behavior, "Normal" }, { " " },
+    { "mcps:", "Comment" }, { tostring(mcps), "Exception" },
+  }
+
+  local virt_opts = { virt_text = texts, hl_mode = "combine" }
+
+  self.extmarks = self.extmarks or {}
+
+  if not self.extmarks.config then
+    self.extmarks.config = {
+      _ns = vim.api.nvim_create_namespace('extmarks_config'),
+    }
+  end
+
+  self.extmarks.config._id = vim.api.nvim_buf_set_extmark(
+    config.bufnr,
+    self.extmarks.config._ns,
+    0,
+    -1,
+    vim.tbl_extend("force", virt_opts, { id = self.extmarks.config._id })
+  )
+end
+
 function M:_update_contexts_display()
   -- Similar implementation for contexts...
   local contexts = self.containers.contexts
@@ -1106,40 +1129,65 @@ function M:_update_contexts_display()
   vim.api.nvim_set_option_value("modifiable", false, { buf = contexts.bufnr })
 end
 
-function M:_update_status_display()
-  local status = self.containers.status
-  if not status or not vim.api.nvim_buf_is_valid(status.bufnr) then
-    return
-  end
-
-  local status_text = self._current_status or ""
-  if status_text == "" then
-    status_text = "💤 Ready"
-  end
-
-  -- Update the buffer
-  vim.api.nvim_set_option_value("modifiable", true, { buf = status.bufnr })
-  vim.api.nvim_buf_set_lines(status.bufnr, 0, -1, false, { status_text })
-  vim.api.nvim_set_option_value("modifiable", false, { buf = status.bufnr })
-end
-
----@param status_text string
-function M:set_status(status_text)
-  self._current_status = status_text or ""
-  self:_update_status_display()
-end
-
-function M:_update_usage_info(usage_text)
+function M:_update_usage_info()
   local usage = self.containers.usage
   if not usage or not vim.api.nvim_buf_is_valid(usage.bufnr) then
     return
   end
 
-  self._usage_info = usage_text or "Usage: Tokens | Cost"
+  local status_state = self.mediator:status_state()
+  local status_text = self.mediator:status_text()
+
+  if status_state == "finished" then
+    status_text = "Idle"
+  end
+
+  local tokens = self.mediator:tokens_session() or 0
+  local limit = self.mediator:tokens_limit() or 0
+  local costs = self.mediator:costs_session() or "0.00"
+
+  self._current_status = string.format("%s", status_text)
+  self._usage_info = string.format("%d / %d (%s)", tokens, limit, costs)
+
+  self.extmarks = self.extmarks or {}
+
+  if not self.extmarks.usage then
+    self.extmarks.usage = {
+      _ns = vim.api.nvim_create_namespace('extmarks_usage'),
+    }
+  end
 
   vim.api.nvim_set_option_value("modifiable", true, { buf = usage.bufnr })
-  vim.api.nvim_buf_set_lines(usage.bufnr, 0, -1, false, { self._usage_info })
+  vim.api.nvim_buf_set_lines(usage.bufnr, 0, -1, false, { "" })
   vim.api.nvim_set_option_value("modifiable", false, { buf = usage.bufnr })
+
+  self.extmarks.usage._id_status = vim.api.nvim_buf_set_extmark(
+    usage.bufnr,
+    self.extmarks.usage._ns,
+    0,
+    -1,
+    vim.tbl_extend("force",
+      {
+        virt_text = { { self._current_status, (status_text ~= "Idle") and "Question" or "Normal" } },
+        virt_text_pos = 'eol',
+        hl_mode = 'combine',
+      },
+      { id = self.extmarks.config._id_status })
+  )
+
+  self.extmarks.usage._id_usage = vim.api.nvim_buf_set_extmark(
+    usage.bufnr,
+    self.extmarks.usage._ns,
+    0,
+    -1,
+    vim.tbl_extend("force",
+      {
+        virt_text = { { self._usage_info } },
+        virt_text_pos = 'right_align',
+        hl_mode = 'combine',
+      },
+      { id = self.extmarks.config._id_usage })
+  )
 end
 
 function M:_render_header(container_name, header_text)
@@ -1195,6 +1243,10 @@ function M:handle_chat_content(message)
   if message.params then
     self:handle_chat_content_received(message.params)
   end
+
+  if message.type == "state/updated" then
+    self:_handle_state_updated(message.content)
+  end
 end
 
 ---@param params table Server content notification
@@ -1210,26 +1262,10 @@ function M:handle_chat_content_received(params)
     -- Handle streaming text content
     self:_handle_streaming_text(content.text)
   elseif content.type == "progress" then
-    if content.state == "running" then
-      -- Show progress in status container instead of chat
-      self:set_status("⏳ " .. (content.text or "Processing..."))
-    elseif content.state == "finished" then
-      -- Clear status and finalize any streaming response
-      self:set_status("💤 Ready")
+    if content.state == "finished" then
       self:_finalize_streaming_response()
       self:_add_input_line()
     end
-  elseif content.type == "usage" then
-    -- Finalize streaming before adding usage info
-    self:_finalize_streaming_response()
-
-    -- Update usage container only (remove duplication in chat)
-    local usage_text =
-      string.format("Usage: Tokens %d in, %d out", content.messageInputTokens or 0, content.messageOutputTokens or 0)
-    if content.messageCost then
-      usage_text = usage_text .. " | Cost: " .. content.messageCost
-    end
-    self:_update_usage_info(usage_text)
   elseif content.type == "toolCallPrepare" then
     self:_finalize_streaming_response()
     self:_handle_tool_call_prepare(content)
@@ -1406,12 +1442,6 @@ function M:_add_message(role, content)
 
     -- Check if content looks like code (starts with common programming patterns)
     local is_code = content:match("^%s*function")
-      or content:match("^%s*class")
-      or content:match("^%s*def ")
-      or content:match("^%s*import")
-      or content:match("^%s*#include")
-      or content:match("^%s*<%?")
-      or content:match("^%s*<html")
 
     if is_code then
       -- Wrap in code block with auto-detection
