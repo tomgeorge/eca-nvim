@@ -178,7 +178,6 @@ function M.setup()
           end
 
           for msg in vim.iter(eca.server.messages) do
-            print(msg)
             local decoded = vim.json.decode(msg.content)
             table.insert(items, {
               text = decoded.method,
