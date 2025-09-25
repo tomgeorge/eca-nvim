@@ -1104,6 +1104,10 @@ function M:_update_config_display()
     }
   end
 
+  vim.api.nvim_set_option_value("modifiable", true, { buf = config.bufnr })
+  vim.api.nvim_buf_set_lines(config.bufnr, 0, -1, false, { "" })
+  vim.api.nvim_set_option_value("modifiable", false, { buf = config.bufnr })
+
   self.extmarks.config._id = vim.api.nvim_buf_set_extmark(
     config.bufnr,
     self.extmarks.config._ns,
