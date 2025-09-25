@@ -1202,7 +1202,7 @@ function M:_update_usage_info()
     -1,
     vim.tbl_extend("force",
       {
-        virt_text = { { self._current_status, (status_text ~= "Idle") and "Debug" or "Normal" } },
+        virt_text = { { self._current_status, (status_text ~= "Idle") and "WarningMsg" or "Normal" } },
         virt_text_pos = 'eol',
         hl_mode = 'combine',
       },
