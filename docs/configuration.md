@@ -48,8 +48,16 @@ require("eca").setup({
   -- === CHAT ===
   chat = {
     headers = {
-      user = "## 👤 You\n\n",
-      assistant = "## 🤖 ECA\n\n",
+      user = "> ",
+      assistant = "",
+    },
+    welcome = {
+      -- If non-empty, overrides server-provided welcome message
+      message = "",
+      -- Tips appended under the welcome (set {} to disable)
+      tips = {
+        "Type your message and use CTRL+s to send",
+      },
     },
   },
 

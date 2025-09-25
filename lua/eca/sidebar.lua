@@ -65,6 +65,7 @@ function M.new(id, mediator)
     user = (Config.chat and Config.chat.headers and Config.chat.headers.user) or "> ",
     assistant = (Config.chat and Config.chat.headers and Config.chat.headers.assistant) or "",
   }
+  instance._welcome_message_applied = false
 
   require("eca.observer").subscribe("sidebar-" .. id, function(message)
     instance:handle_chat_content(message)
@@ -192,6 +193,7 @@ function M:reset()
   self._selected_code = nil
   self._todos = {}
   self._current_status = ""
+  self._welcome_message_applied = false
 end
 
 function M:new_chat()
@@ -747,6 +749,7 @@ function M:_handle_state_updated(state)
 
   if state.config or state.tools then
     self:_update_config_display()
+    self:_update_welcome_content()
   end
 end
 
@@ -869,26 +872,7 @@ function M:_set_welcome_content()
     self._force_welcome = false
   end
 
-  local lines = {
-    "# 🤖 ECA - Editor Code Assistant",
-    "",
-    "> **Welcome to ECA!** Your AI-powered code assistant is ready to help.",
-    "",
-    "## 🚀 Getting Started",
-    "",
-    "- **Chat**: Type your message in the input field at the bottom and press `Ctrl+S` to send",
-    "- **Multiline**: Use `Enter` for new lines, `Ctrl+S` to send",
-    "- **Context**: Use `@` to mention files or directories",
-    "- **Context**: Use `:EcaAddFile` to add files, `:EcaListContexts` to view, `:EcaClearContexts` to clear",
-    "- **Selection**: Use `:EcaAddSelection` to add code selection",
-    "- **RepoMap**: Use `:EcaAddRepoMap` to add repository structure context",
-    "",
-    "---",
-    "",
-  }
-
-  Logger.debug("Setting welcome content for new chat")
-  vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
+  self:_update_welcome_content()
 
   -- Auto-add repoMap context if enabled and not already present
   if Config.options.context.auto_repo_map then
@@ -1222,6 +1206,41 @@ function M:_update_usage_info()
       },
       { id = self.extmarks.usage._id_usage })
   )
+end
+
+function M:_update_welcome_content()
+  if self._welcome_applied then
+    return
+  end
+
+  local chat = self.containers.chat
+  if not chat or not vim.api.nvim_buf_is_valid(chat.bufnr) then
+    return
+  end
+
+  local cfg = (Config.chat and Config.chat.welcome) or {}
+  local cfg_msg = (cfg.message and cfg.message ~= "" and cfg.message) or nil
+  local welcome_message = cfg_msg or (self.mediator and self.mediator:welcome_message() or nil)
+
+  local lines = { "Waiting for welcome message from ECA server..." }
+
+  if welcome_message and welcome_message ~= "" then
+    lines = Utils.split_lines(welcome_message)
+
+    local tips = cfg.tips or {}
+
+    if #tips > 0 then
+      for _, tip in ipairs(tips) do
+        table.insert(lines, tip)
+      end
+    end
+
+    self._welcome_applied = true
+  end
+
+  table.insert(lines, "")
+  Logger.debug("Setting welcome content for chat (welcome applied: " .. tostring(self._welcome_applied) .. ")")
+  vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
 end
 
 function M:_render_header(container_name, header_text)
