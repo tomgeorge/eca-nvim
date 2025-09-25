@@ -31,7 +31,10 @@ local M = {}
 M.__index = M
 
 -- Height calculation constants
+local MIN_CHAT_HEIGHT = 10 -- Minimum lines for chat container to remain usable
+local WINDOW_MARGIN = 3 -- Additional margin for window borders and spacing
 local UI_ELEMENTS_HEIGHT = 2 -- Reserve space for statusline and tabline
+local SAFETY_MARGIN = 2 -- Extra margin to prevent "Not enough room" errors
 
 ---@param id integer Tab ID
 ---@param mediator eca.Mediator
@@ -230,6 +233,12 @@ function M:_create_containers()
 
   -- Validate total height to prevent "Not enough room" error
   local total_height = chat_height
+    + selected_code_height
+    + todos_height
+    + status_height
+    + contexts_height
+    + input_height
+    + usage_height
     + config_height
 
   -- Always calculate from total screen minus UI elements (more accurate than current window)
@@ -567,6 +576,13 @@ function M:get_chat_height()
   return math.max(
     MIN_CHAT_HEIGHT,
     total_height
+      - input_height
+      - usage_height
+      - status_height
+      - contexts_height
+      - selected_code_height
+      - todos_height
+      - WINDOW_MARGIN
       - config_height
   )
 end
@@ -1442,6 +1458,12 @@ function M:_add_message(role, content)
 
     -- Check if content looks like code (starts with common programming patterns)
     local is_code = content:match("^%s*function")
+      or content:match("^%s*class")
+      or content:match("^%s*def ")
+      or content:match("^%s*import")
+      or content:match("^%s*#include")
+      or content:match("^%s*<%?")
+      or content:match("^%s*<html")
 
     if is_code then
       -- Wrap in code block with auto-detection
