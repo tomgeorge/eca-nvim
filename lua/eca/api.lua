@@ -4,14 +4,25 @@ local Logger = require("eca.logger")
 -- Load nui.nvim components for floating windows
 local Popup = require("nui.popup")
 
+---@type eca.Chat[]
+_G.chats = {}
+
 ---@class eca.Api
 local M = {}
 
 ---@param opts? table
 function M.chat(opts)
-  opts = opts or {}
-  local eca = require("eca")
-  eca.open_sidebar(opts)
+  if require("eca.config").chat.use_experimental_ui then
+    local chat = require("eca.chat").new({
+      mappings = require("eca.config").chat.mappings,
+    })
+    table.insert(_G.chats, chat)
+    chat:open()
+  else
+    opts = opts or {}
+    local eca = require("eca")
+    eca.open_sidebar(opts)
+  end
 end
 
 function M.focus()
@@ -58,7 +69,7 @@ end
 ---@param file_path string
 function M.add_file_context(file_path)
   Logger.info("Adding file context: " .. file_path)
-  
+
   local eca = require("eca")
 
   if not eca.server or not eca.server:is_running() then
@@ -151,8 +162,8 @@ function M.add_selection_context()
       path = context_path,
       lines_range = {
         start = start_line,
-        End = end_line
-      }
+        End = end_line,
+      },
     }
 
     -- Get current sidebar and add context

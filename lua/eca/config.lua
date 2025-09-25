@@ -48,6 +48,8 @@ M._defaults = {
       user = "## 👤 You\n\n",
       assistant = "## 🤖 ECA\n\n",
     },
+    use_experimental_ui = false,
+    mappings = {},
   },
   windows = {
     wrap = true,

@@ -63,8 +63,8 @@ local function override_mappings(mappings)
 end
 
 ---@class eca.ChatOpts
----@field id number
----@field ui eca.ChatUIOpts
+---@field id? number
+---@field ui? eca.ChatUIOpts
 ---@field mappings table<string, string>
 
 ---@param opts? eca.ChatOpts
