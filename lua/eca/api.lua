@@ -14,6 +14,8 @@ local M = {}
 function M.chat(opts)
   if require("eca.config").chat.use_experimental_ui then
     local chat = require("eca.chat").new({
+      mediator = require("eca").mediator,
+      configuration = require("eca").server.configuration,
       mappings = require("eca.config").chat.mappings,
     })
     table.insert(_G.chats, chat)

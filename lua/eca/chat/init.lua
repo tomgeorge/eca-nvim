@@ -7,6 +7,7 @@
 ---@field open_help eca.ChatKeymapSpec
 ---@field toggle_context eca.ChatKeymapSpec
 ---@field toggle_usage eca.ChatKeymapSpec
+---@field server_info eca.ChatKeymapSpec
 
 ---@type eca.ChatKeymaps
 local default_mappings = {
@@ -14,6 +15,7 @@ local default_mappings = {
   toggle_usage = { "<leader>ut", "Toggle usage view" },
   close = { "<leader>ax", "Close chat window" },
   open_help = { "g?", "Show help" },
+  server_info = { "<leader>ei", "Show server configuration" },
 }
 
 ---@alias eca.UserKeymapOverrides {[string]: string}
@@ -23,6 +25,8 @@ local default_mappings = {
 ---@field title string LLM-generated summary of the discussion
 ---@field contexts eca.ChatContext[] the contexts for the chat
 ---@field messages string[] chat messages from the server
+---@field mediator eca.Mediator
+---@field configuration eca.ServerConfiguration
 ---@field mappings eca.ChatKeymaps
 ---@field ui eca.ChatUI the ui provider for the chat
 local Chat = {}
@@ -46,6 +50,9 @@ local function make_buffer_mappings(chat)
     buf_map(window.buf, chat.mappings.toggle_usage[1], function()
       chat:toggle_usage()
     end, chat.mappings.toggle_usage[2])
+    buf_map(window.buf, chat.mappings.server_info[1], function()
+      chat:open_info()
+    end, chat.mappings.server_info[2])
   end
 end
 
@@ -66,6 +73,8 @@ end
 ---@field id? number
 ---@field ui? eca.ChatUIOpts
 ---@field mappings table<string, string>
+---@field mediator eca.Mediator
+---@field configuration eca.ServerConfiguration
 
 ---@param opts? eca.ChatOpts
 ---@return eca.Chat
@@ -75,17 +84,31 @@ function Chat.new(opts)
     id = math.random(1000, 9999),
     title = "",
   }, opts or {})
+  assert(opts.mediator, "mediator not initialized")
 
   local ui = require("eca.chat.ui").new(opts.id, opts.ui)
+
   local self = setmetatable({
     id = opts.id,
     ui = ui,
     mappings = override_mappings(opts.mappings or {}),
+    mediator = opts.mediator,
     messages = {},
+    configuration = opts.configuration or {},
     contexts = { { type = "repoMap" } },
     help = opts.help,
   }, { __index = Chat })
+
   make_buffer_mappings(self)
+
+  vim.api.nvim_create_autocmd("User", {
+    pattern = "EcaServerUpdated",
+    callback = function(event)
+      if event.data then
+        self.configuration = event.data
+      end
+    end,
+  })
   return self
 end
 
@@ -117,6 +140,10 @@ end
 
 function Chat:toggle_usage()
   self.ui:toggle_usage()
+end
+
+function Chat:open_info()
+  self.ui:open_info(self.configuration)
 end
 
 return Chat

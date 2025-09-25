@@ -62,4 +62,13 @@ T["integration"]["respects mappings"] = function()
   eq(chat.mappings.close, { "<Leader>cl", "Close chat window" })
 end
 
+T["integration"]["runs a command"] = function()
+  child.type_keys(200, " ec", "i/config", "<C-s>")
+  local screenshot = child.get_screenshot()
+  MiniTest.expect.reference_screenshot(screenshot, nil, {})
+
+  local chat = child.lua_get("_G.chats[1]")
+  eq(child.api.nvim_buf_get_lines(chat.ui.windows.chat.buf, 0, -1, false), { "Hi" })
+end
+
 return T

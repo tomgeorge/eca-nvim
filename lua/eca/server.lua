@@ -11,6 +11,7 @@ local Logger = require("eca.logger")
 ---@field on_initialize? function Callback when server initializes
 ---@field on_start? function Callback when the server process starts
 ---@field on_stop function Callback when the server stops
+---@field configuration eca.ServerConfiguration
 ---Called when a notification is received(message without an ID)
 ---@field on_notification fun(server: eca.Server, message: table)
 ---@field private path_finder eca.PathFinder Server path finder
@@ -32,8 +33,15 @@ function M.new(opts)
     end,
     ---@param _ eca.Server
     ---@param message table
-    on_notification = function(_, message)
+    on_notification = function(server, message)
       return vim.schedule(function()
+        if message.method == "config/updated" then
+          server.configuration = message.params
+          vim.api.nvim_exec_autocmds("User", {
+            pattern = "EcaServerUpdated",
+            data = message.params,
+          })
+        end
         require("eca.observer").notify(message)
       end)
     end,
@@ -48,6 +56,7 @@ function M.new(opts)
     on_notification = opts.on_notification,
     path_finder = opts.path_finder,
     messages = {},
+    configuration = {},
     pending_requests = {},
     initialized = false,
     next_id = 0,

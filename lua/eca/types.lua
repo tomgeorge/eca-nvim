@@ -2,12 +2,18 @@
 
 ---@alias eca.ChatModel string
 ---@alias eca.ChatBehavior 'agent'|'plan'
----@class eca.ServerCapabilities
+
+---@class eca.ServerChatConfiguration
 ---@field welcomeMessage string
 ---@field models eca.ChatModel[]
 ---@field defaultModel eca.ChatModel
+---@field selectModel eca.ChatModel
 ---@field behaviors eca.ChatBehavior[]
 ---@field defaultBehavior eca.ChatBehavior
+---@field selectBehavior eca.ChatBehavior
+
+---@class eca.ServerConfiguration
+---@field chat eca.ServerChatConfiguration
 
 ---@class eca.ChatContext
 ---@field type string

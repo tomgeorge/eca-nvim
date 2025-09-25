@@ -4,6 +4,7 @@
 ---@field usage eca.ChatWindowConfiguration
 ---@field input eca.ChatWindowConfiguration
 ---@field help eca.ChatWindowConfiguration
+---@field info eca.ChatWindowConfiguration
 
 ---@class eca.ChatWindowConfiguration
 ---@field buf? number
@@ -105,7 +106,9 @@ local default_windows = {
       width = math.floor(gwidth * default_size),
       split = "below",
     },
-    win_options = {},
+    win_options = {
+      winfixheight = true,
+    },
     buf_options = {
       modifiable = false,
       filetype = "eca_usage",
@@ -130,6 +133,28 @@ local default_windows = {
     },
     buf_options = {
       filetype = "eca-help",
+      modifiable = false,
+    },
+  },
+  info = {
+    name = "Info",
+    enter = true,
+    win_config = {
+      relative = "cursor",
+      row = 10,
+      col = 10,
+      width = 10,
+      height = 10,
+      title = "Server Information",
+      border = "single",
+    },
+    win_options = {
+      number = false,
+      relativenumber = false,
+      cursorline = true,
+    },
+    buf_options = {
+      filetype = "eca-info",
       modifiable = false,
     },
   },
@@ -273,6 +298,44 @@ function UI:open_help(mappings)
   vim.keymap.set("n", "q", "<Cmd>close<CR>", {
     buffer = self.windows.help.buf,
     desc = "Close help window",
+    nowait = true,
+    silent = true,
+  })
+end
+
+---@param info eca.ServerConfiguration
+function UI:open_info(info)
+  local lines = { "Waiting for server information", "", "Press 'q' to close" }
+  if not vim.tbl_isempty(info) then
+    lines = {
+      "Selected Model: " .. info.chat.selectModel,
+      "Selected Behavior: " .. info.chat.selectBehavior,
+      "",
+      "Available Models: " .. vim.inspect(info.chat.models),
+      "Available Behaviors: " .. vim.inspect(info.chat.behaviors),
+      "",
+      "Press 'q' to close",
+    }
+  end
+
+  local line_widths = {}
+  for _, line in ipairs(lines) do
+    table.insert(line_widths, vim.fn.strdisplaywidth(line))
+  end
+
+  self.windows.info.win_config = vim.tbl_deep_extend("force", self.windows.info.win_config, {
+    width = math.max(unpack(line_widths)) + 2,
+    height = #lines,
+  })
+
+  vim.api.nvim_set_option_value("modifiable", true, { buf = self.windows.info.buf })
+  vim.api.nvim_buf_set_lines(self.windows.info.buf, 0, -1, false, lines)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = self.windows.info.buf })
+  open_win(self.windows.info)
+
+  vim.keymap.set("n", "q", "<Cmd>close<CR>", {
+    buffer = self.windows.info.buf,
+    desc = "Close info window",
     nowait = true,
     silent = true,
   })
