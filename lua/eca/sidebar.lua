@@ -180,6 +180,7 @@ function M:reset()
 
   -- Reset all state
   self.containers = {}
+  self.extmarks = {}
   self._initialized = false
   self._is_streaming = false
   self._current_response_buffer = ""
@@ -1064,7 +1065,7 @@ end
 
 function M:_update_config_display()
   local config = self.containers.config
-  if not config or not vim.api.nvim_buf_is_valid(config.bufnr) then
+  if not config or not config.bufnr or not vim.api.nvim_buf_is_valid(config.bufnr) then
     return
   end
 
@@ -1149,7 +1150,7 @@ end
 
 function M:_update_usage_info()
   local usage = self.containers.usage
-  if not usage or not vim.api.nvim_buf_is_valid(usage.bufnr) then
+  if not usage or not usage.bufnr or not vim.api.nvim_buf_is_valid(usage.bufnr) then
     return
   end
 
