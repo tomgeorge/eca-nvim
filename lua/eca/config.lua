@@ -45,8 +45,14 @@ M._defaults = {
   },
   chat = {
     headers = {
-      user = "## 👤 You\n\n",
-      assistant = "## 🤖 ECA\n\n",
+      user = "> ",
+      assistant = "",
+    },
+    welcome = {
+      message = "", -- If non-empty, overrides server-provided welcome message
+      tips = {
+        "Type your message and use CTRL+s to send", -- Tips appended under the welcome (set empty list {} to disable)
+      },
     },
   },
   windows = {

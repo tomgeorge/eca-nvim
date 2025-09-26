@@ -62,9 +62,10 @@ function M.new(id, mediator)
   instance._response_start_time = 0
   instance._max_response_length = 50000 -- 50KB max response
   instance._headers = {
-    user = (Config.chat and Config.chat.headers and Config.chat.headers.user) or "## 👤 You\n\n",
-    assistant = (Config.chat and Config.chat.headers and Config.chat.headers.assistant) or "## 🤖 ECA\n\n",
+    user = (Config.chat and Config.chat.headers and Config.chat.headers.user) or "> ",
+    assistant = (Config.chat and Config.chat.headers and Config.chat.headers.assistant) or "",
   }
+  instance._welcome_message_applied = false
 
   require("eca.observer").subscribe("sidebar-" .. id, function(message)
     instance:handle_chat_content(message)
@@ -193,6 +194,7 @@ function M:reset()
   self._selected_code = nil
   self._todos = {}
   self._current_status = ""
+  self._welcome_message_applied = false
 end
 
 function M:new_chat()
@@ -748,6 +750,7 @@ function M:_handle_state_updated(state)
 
   if state.config or state.tools then
     self:_update_config_display()
+    self:_update_welcome_content()
   end
 end
 
@@ -870,26 +873,7 @@ function M:_set_welcome_content()
     self._force_welcome = false
   end
 
-  local lines = {
-    "# 🤖 ECA - Editor Code Assistant",
-    "",
-    "> **Welcome to ECA!** Your AI-powered code assistant is ready to help.",
-    "",
-    "## 🚀 Getting Started",
-    "",
-    "- **Chat**: Type your message in the input field at the bottom and press `Ctrl+S` to send",
-    "- **Multiline**: Use `Enter` for new lines, `Ctrl+S` to send",
-    "- **Context**: Use `@` to mention files or directories",
-    "- **Context**: Use `:EcaAddFile` to add files, `:EcaListContexts` to view, `:EcaClearContexts` to clear",
-    "- **Selection**: Use `:EcaAddSelection` to add code selection",
-    "- **RepoMap**: Use `:EcaAddRepoMap` to add repository structure context",
-    "",
-    "---",
-    "",
-  }
-
-  Logger.debug("Setting welcome content for new chat")
-  vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
+  self:_update_welcome_content()
 
   -- Auto-add repoMap context if enabled and not already present
   if Config.options.context.auto_repo_map then
@@ -1225,6 +1209,41 @@ function M:_update_usage_info()
   )
 end
 
+function M:_update_welcome_content()
+  if self._welcome_applied then
+    return
+  end
+
+  local chat = self.containers.chat
+  if not chat or not vim.api.nvim_buf_is_valid(chat.bufnr) then
+    return
+  end
+
+  local cfg = (Config.chat and Config.chat.welcome) or {}
+  local cfg_msg = (cfg.message and cfg.message ~= "" and cfg.message) or nil
+  local welcome_message = cfg_msg or (self.mediator and self.mediator:welcome_message() or nil)
+
+  local lines = { "Waiting for welcome message from ECA server..." }
+
+  if welcome_message and welcome_message ~= "" then
+    lines = Utils.split_lines(welcome_message)
+
+    local tips = cfg.tips or {}
+
+    if #tips > 0 then
+      for _, tip in ipairs(tips) do
+        table.insert(lines, tip)
+      end
+    end
+
+    self._welcome_applied = true
+  end
+
+  table.insert(lines, "")
+  Logger.debug("Setting welcome content for chat (welcome applied: " .. tostring(self._welcome_applied) .. ")")
+  vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, lines)
+end
+
 function M:_render_header(container_name, header_text)
   if not Config.windows.sidebar_header.enabled then
     return {}
@@ -1377,8 +1396,32 @@ function M:_handle_streaming_text(text)
     -- Start streaming - simple and direct
     self._is_streaming = true
     self._current_response_buffer = ""
+
+    -- Determine insertion point before adding placeholder (works even with empty header)
+    local chat = self.containers.chat
+    local start_line = 1
+    if chat and vim.api.nvim_buf_is_valid(chat.bufnr) then
+      start_line = vim.api.nvim_buf_line_count(chat.bufnr) + 1
+    end
+
+    -- Add assistant placeholder and track its start line
     self:_add_message("assistant", "")
-    self._last_assistant_line = self:_get_last_message_line()
+    self._last_assistant_line = start_line
+
+    -- Track placeholder with an extmark independent of header content
+    self.extmarks = self.extmarks or {}
+    if not self.extmarks.assistant then
+      self.extmarks.assistant = { _ns = vim.api.nvim_create_namespace('extmarks_assistant') }
+    end
+    if chat and vim.api.nvim_buf_is_valid(chat.bufnr) then
+      self.extmarks.assistant._id = vim.api.nvim_buf_set_extmark(
+        chat.bufnr,
+        self.extmarks.assistant._ns,
+        start_line - 1,
+        0,
+        { id = self.extmarks.assistant._id }
+      )
+    end
   end
 
   -- Simple accumulation - no complex checks
@@ -1416,9 +1459,17 @@ function M:_update_streaming_message(content)
     -- Get current lines
     local lines = vim.api.nvim_buf_get_lines(chat.bufnr, 0, -1, false)
     local content_lines = Utils.split_lines(content)
-    local start_line = self._last_assistant_line
 
-    Logger.debug("DEBUG: Assistant line: " .. self._last_assistant_line .. ", start_line: " .. start_line)
+    -- Resolve assistant start line using extmark if available
+    local start_line = self._last_assistant_line
+    if self.extmarks and self.extmarks.assistant and self.extmarks.assistant._id then
+      local pos = vim.api.nvim_buf_get_extmark_by_id(chat.bufnr, self.extmarks.assistant._ns, self.extmarks.assistant._id, {})
+      if pos and pos[1] then
+        start_line = pos[1] + 1
+      end
+    end
+
+    Logger.debug("DEBUG: Assistant line: " .. tostring(self._last_assistant_line) .. ", start_line: " .. tostring(start_line))
     Logger.debug("DEBUG: Content lines: " .. #content_lines)
 
     -- Replace assistant content directly
@@ -1439,6 +1490,19 @@ function M:_update_streaming_message(content)
 
     -- Set all lines at once
     vim.api.nvim_buf_set_lines(chat.bufnr, 0, -1, false, new_lines)
+
+    -- Re-anchor the assistant extmark at the start line (for subsequent updates)
+    self.extmarks = self.extmarks or {}
+    if not self.extmarks.assistant then
+      self.extmarks.assistant = { _ns = vim.api.nvim_create_namespace('extmarks_assistant') }
+    end
+    self.extmarks.assistant._id = vim.api.nvim_buf_set_extmark(
+      chat.bufnr,
+      self.extmarks.assistant._ns,
+      start_line - 1,
+      0,
+      { id = self.extmarks.assistant._id }
+    )
 
     Logger.debug("DEBUG: Buffer updated successfully with " .. #new_lines .. " total lines")
   end)
@@ -1520,6 +1584,13 @@ function M:_finalize_streaming_response()
     self._current_response_buffer = ""
     self._last_assistant_line = 0
     self._response_start_time = 0
+
+    -- Clear assistant placeholder tracking extmark
+    local chat = self.containers.chat
+    if chat and vim.api.nvim_buf_is_valid(chat.bufnr) and self.extmarks and self.extmarks.assistant then
+      pcall(vim.api.nvim_buf_clear_namespace, chat.bufnr, self.extmarks.assistant._ns, 0, -1)
+      self.extmarks.assistant._id = nil
+    end
 
     Logger.debug("DEBUG: Streaming state cleared")
   else

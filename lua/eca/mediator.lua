@@ -54,6 +54,10 @@ function mediator:status_text()
   return self.state.status.text
 end
 
+function mediator:welcome_message()
+  return (self.state and self.state.config and self.state.config.welcome_message) or nil
+end
+
 function mediator:mcps()
   local mcps = {}
 
