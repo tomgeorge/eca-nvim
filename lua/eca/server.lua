@@ -12,11 +12,21 @@ local Logger = require("eca.logger")
 ---@field on_start? function Callback when the server process starts
 ---@field on_stop function Callback when the server stops
 ---@field configuration eca.ServerConfiguration
+---TODO: document and type
+---@field tools table
+---
 ---Called when a notification is received(message without an ID)
 ---@field on_notification fun(server: eca.Server, message: table)
 ---@field private path_finder eca.PathFinder Server path finder
 ---@field pending_requests {id: fun(err, data)} -- outgoing requests with callbacks
 local M = {}
+
+local function update_tool(server, tool)
+  if not tool.name then
+    return
+  end
+  server.tools[tool.name] = tool
+end
 
 ---@param opts? table
 ---@return eca.Server
@@ -42,6 +52,13 @@ function M.new(opts)
             data = message.params,
           })
         end
+        if message.method == "tool/serverUpdated" then
+          update_tool(server, message.params)
+          vim.api.nvim_exec_autocmds("User", {
+            pattern = "EcaServerToolUpdated",
+            data = message.params,
+          })
+        end
         require("eca.observer").notify(message)
       end)
     end,
@@ -57,6 +74,7 @@ function M.new(opts)
     path_finder = opts.path_finder,
     messages = {},
     configuration = {},
+    tools = {},
     pending_requests = {},
     initialized = false,
     next_id = 0,

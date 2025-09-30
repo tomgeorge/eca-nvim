@@ -151,6 +151,7 @@ local default_windows = {
     win_options = {
       number = false,
       relativenumber = false,
+      wrap = true,
       cursorline = true,
     },
     buf_options = {
@@ -308,15 +309,29 @@ function UI:open_info(info)
   local lines = { "Waiting for server information", "", "Press 'q' to close" }
   if not vim.tbl_isempty(info) then
     lines = {
-      "Selected Model: " .. info.chat.selectModel,
-      "Selected Behavior: " .. info.chat.selectBehavior,
+      "Selected Model: " .. info.configuration.chat.selectModel,
+      "Selected Behavior: " .. info.configuration.chat.selectBehavior,
       "",
-      "Available Models: " .. vim.inspect(info.chat.models),
-      "Available Behaviors: " .. vim.inspect(info.chat.behaviors),
+      "Available Models: " .. vim.inspect(info.configuration.chat.models),
+      "Available Behaviors: " .. vim.inspect(info.configuration.chat.behaviors),
       "",
-      "Press 'q' to close",
     }
   end
+
+  if not vim.tbl_isempty(info.tools) then
+    table.insert(lines, "Tools:")
+    table.insert(lines, "")
+    for _, tool in pairs(info.tools) do
+      local line = string.format("[%s] %s: %s", tool.type, tool.name, tool.status)
+      if tool.tools then
+        line = string.format("> %s", line)
+      end
+      table.insert(lines, line)
+    end
+    table.insert(lines, "")
+  end
+
+  table.insert(lines, "Press 'q' to close")
 
   local line_widths = {}
   for _, line in ipairs(lines) do
@@ -339,6 +354,30 @@ function UI:open_info(info)
     nowait = true,
     silent = true,
   })
+
+  vim.keymap.set("n", "<Tab>", function()
+    local row, _ = unpack(vim.api.nvim_win_get_cursor(0))
+    local tool = vim.api.nvim_get_current_line():match(".*%s%[%w+%]%s(%w+).*$")
+    if tool then
+      local before = vim.api.nvim_buf_get_lines(0, 0, row, false)
+      local after = vim.api.nvim_buf_get_lines(0, row, -1, false)
+      local tools = info.tools[tool].tools
+      local lines = before
+      for _, t in pairs(tools) do
+        local tool_info = string.format("%s- %s", t.name, t.description)
+        if t.disabled then
+          tool_info = string.format("%s- %s [disabled]", t.name, t.description)
+        end
+        table.insert(lines, tool_info)
+      end
+      vim.iter(after):each(function(line)
+        table.insert(lines, line)
+      end)
+      vim.api.nvim_set_option_value("modifiable", true, { buf = self.windows.info.buf })
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+      vim.api.nvim_set_option_value("modifiable", false, { buf = self.windows.info.buf })
+    end
+  end)
 end
 
 ---@param window eca.ChatWindowConfiguration

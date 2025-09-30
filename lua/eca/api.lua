@@ -16,6 +16,7 @@ function M.chat(opts)
     local chat = require("eca.chat").new({
       mediator = require("eca").mediator,
       configuration = require("eca").server.configuration,
+      tools = require("eca").server.tools,
       mappings = require("eca.config").chat.mappings,
     })
     table.insert(_G.chats, chat)

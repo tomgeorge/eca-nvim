@@ -8,6 +8,7 @@
 ---@field toggle_context eca.ChatKeymapSpec
 ---@field toggle_usage eca.ChatKeymapSpec
 ---@field server_info eca.ChatKeymapSpec
+---@field submit eca.ChatKeymapSpec
 
 ---@type eca.ChatKeymaps
 local default_mappings = {
@@ -16,6 +17,7 @@ local default_mappings = {
   close = { "<leader>ax", "Close chat window" },
   open_help = { "g?", "Show help" },
   server_info = { "<leader>ei", "Show server configuration" },
+  submit = { "<C-s>", "Submit chat prompt" },
 }
 
 ---@alias eca.UserKeymapOverrides {[string]: string}
@@ -27,33 +29,39 @@ local default_mappings = {
 ---@field messages string[] chat messages from the server
 ---@field mediator eca.Mediator
 ---@field configuration eca.ServerConfiguration
+---TODO: document
+---@field tools table<string, table>
 ---@field mappings eca.ChatKeymaps
 ---@field ui eca.ChatUI the ui provider for the chat
 local Chat = {}
 
 ---@param chat eca.Chat
 local function make_buffer_mappings(chat)
-  local function buf_map(buf, lhs, rhs, desc)
-    vim.keymap.set("n", lhs, rhs, { buffer = buf, desc = desc, silent = true })
+  local function buf_map(buf, mode, lhs, rhs, desc)
+    vim.keymap.set(mode, lhs, rhs, { buffer = buf, desc = desc, silent = true })
   end
 
   for _, window in pairs(chat.ui.windows) do
-    buf_map(window.buf, chat.mappings.close[1], function()
+    buf_map(window.buf, "n", chat.mappings.close[1], function()
       chat:close()
     end, chat.mappings.close[2])
-    buf_map(window.buf, chat.mappings.toggle_context[1], function()
+    buf_map(window.buf, "n", chat.mappings.toggle_context[1], function()
       chat:toggle_context()
     end, chat.mappings.toggle_context[2])
-    buf_map(window.buf, chat.mappings.open_help[1], function()
+    buf_map(window.buf, "n", chat.mappings.open_help[1], function()
       chat:open_help()
     end, chat.mappings.open_help[2])
-    buf_map(window.buf, chat.mappings.toggle_usage[1], function()
+    buf_map(window.buf, "n", chat.mappings.toggle_usage[1], function()
       chat:toggle_usage()
     end, chat.mappings.toggle_usage[2])
-    buf_map(window.buf, chat.mappings.server_info[1], function()
+    buf_map(window.buf, "n", chat.mappings.server_info[1], function()
       chat:open_info()
     end, chat.mappings.server_info[2])
   end
+
+  buf_map(chat.ui.windows.input.buf, { "n", "i" }, chat.mappings.submit[1], function()
+    chat:submit()
+  end, chat.mappings.submit[2])
 end
 
 --- Override default mappings
@@ -75,6 +83,8 @@ end
 ---@field mappings table<string, string>
 ---@field mediator eca.Mediator
 ---@field configuration eca.ServerConfiguration
+---TODO: type
+---@field tools table
 
 ---@param opts? eca.ChatOpts
 ---@return eca.Chat
@@ -95,6 +105,7 @@ function Chat.new(opts)
     mediator = opts.mediator,
     messages = {},
     configuration = opts.configuration or {},
+    tools = opts.tools or {},
     contexts = { { type = "repoMap" } },
     help = opts.help,
   }, { __index = Chat })
@@ -102,10 +113,19 @@ function Chat.new(opts)
   make_buffer_mappings(self)
 
   vim.api.nvim_create_autocmd("User", {
-    pattern = "EcaServerUpdated",
+    pattern = { "EcaServerUpdated", "EcaServerToolUpdated" },
     callback = function(event)
-      if event.data then
+      if event.data and event.data.chat then
         self.configuration = event.data
+        if self.configuration.chat.welcomeMessage then
+          for _, message in pairs(vim.split(self.configuration.chat.welcomeMessage, "\n")) do
+            self:push(message)
+          end
+          self.ui:render({ messages = self.messages, context = self.contexts })
+        end
+      end
+      if event.data and event.data.name and event.data.type then
+        self.tools[event.data.name] = event.data
       end
     end,
   })
@@ -143,7 +163,20 @@ function Chat:toggle_usage()
 end
 
 function Chat:open_info()
-  self.ui:open_info(self.configuration)
+  self.ui:open_info({ configuration = self.configuration, tools = self.tools })
 end
+
+function Chat:submit()
+  local lines = vim.api.nvim_buf_get_lines(self.ui.windows.input.buf, 0, -1, false)
+  self.mediator:send("chat/prompt", {
+    chatId = self.id,
+    message = table.concat(lines, " "),
+    contexts = self.contexts,
+  }, function(err, result)
+    print("got a result")
+  end)
+end
+
+table.concat({ "Hey how's it going", "how are you" }, " ")
 
 return Chat
